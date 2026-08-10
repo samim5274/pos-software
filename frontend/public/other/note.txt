@@ -1,0 +1,20 @@
+1. Public view -> product details page variant select items price show in main price. <!-- ===================== Pending =====================-->
+
+Settings
+ ├── Profile
+ ├── Business
+ ├── Notifications
+ ├── Appearance
+ ├── Security
+ │
+ ├── Change Password
+ ├── Two Factor Authentication
+ ├── Login Sessions
+ ├── Trusted Devices
+ ├── Login History
+ ├── API Tokens
+ ├── Connected Devices
+ ├── Email Verification
+ ├── Phone Verification
+ ├── Delete Account
+ └── Export My Data

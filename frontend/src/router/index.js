@@ -1,0 +1,123 @@
+import { createRouter, createWebHistory } from 'vue-router';
+
+// Auth Routes
+const Login = () => import('../components/Auth/login.vue');
+const Register = () => import('../components/Auth/register.vue');
+const SocialLogin = () => import('../components/Auth/SocialCallback.vue');
+const FindAccount = () => import('../components/Auth/find-account.vue');
+const otpVerification = () => import('../components/Auth/otp-verification.vue');
+const resetPassword = () => import('../components/Auth/reset-password.vue');
+const Unauthorized = () => import('../components/Auth/unauthorized.vue');
+
+
+
+
+
+
+const AdminDashboard = () => import('../components/Dashboard/admin/admin-dashboard.vue');
+const AdminProfile = () => import('../components/Dashboard/admin/admin-profile.vue');
+
+
+
+
+
+
+const routes = [
+    // Auth Routes
+    { path: '/login', component: Login, meta: {title: "Login - Mercuviax - Pos Software | Bangladesh's Best POS Software Company"} },
+    { path: '/register/:refer_code?', component: Register, meta: {title: "Register - Mercuviax - Pos Software | Bangladesh's Best POS Software Company"} },
+    { path: '/forget-password', component: FindAccount, meta: {title: "Forget Password - Mercuviax - Pos Software | Bangladesh's Best POS Software Company"} },
+    { path: '/otp-verification', component: otpVerification, meta: {title: "OTP Verification - Mercuviax - Pos Software | Bangladesh's Best POS Software Company", requiresEmail: true} },
+    { path: '/reset-password', component: resetPassword, meta: {title: "Reset Password - Mercuviax - Pos Software | Bangladesh's Best POS Software Company", requiresEmail: true} },
+    { path: '/unauthorized', component: Unauthorized, meta: {title: "Unauthorized - Mercuviax - Pos Software | Bangladesh's Best POS Software Company"} },
+    { path: "/auth/social", component: SocialLogin, meta: { title: "Social Login - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
+
+
+
+
+
+
+
+
+
+
+
+    // Admin Route 
+    { path: "/", component: AdminDashboard, meta: { title: "Dashboard - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
+    { path: "/admin/dashboard", component: AdminDashboard, meta: { title: "Admin Dashboard - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
+    { path: "/admin/profile", component: AdminProfile, meta: { title: "Profile - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
+]
+
+
+
+
+
+
+
+
+
+
+
+
+const router = createRouter({
+    history: createWebHistory(import.meta.env.VITE_BASE_URL || '/'),
+    routes,
+
+    scrollBehavior(to, from, savedPosition) {
+        if (savedPosition) {
+            return savedPosition;
+        }
+
+        return {
+            top: 0,
+            behavior: "smooth",
+        };
+    },
+});
+
+
+
+
+
+
+
+
+// security check
+router.beforeEach((to, from, next) => {
+  
+    const token = localStorage.getItem("token");
+    const user = JSON.parse(localStorage.getItem('user'));
+
+    // Set page title
+    if (to.meta.title) {
+        document.title = to.meta.title;
+    }
+
+    // Check if route requires email
+    if (to.meta.requiresEmail) {
+        const email = localStorage.getItem('email')
+        if (!email) {
+        // Email not found, redirect to forget-password
+        return next('/forget-password');
+        }
+    }
+
+    if (to.meta.requiresAuth && !token) {
+        return next('/login');
+    }
+
+    // console.log(to.meta.roles);
+    if (to.meta.roles) {
+        if (!user) {
+        return next('/login');
+        }
+
+        if (!to.meta.roles.includes(user.role)) {
+        return next('/unauthorized');
+        }
+    }
+
+    next();
+});
+
+export default router

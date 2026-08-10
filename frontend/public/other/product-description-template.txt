@@ -1,0 +1,27 @@
+<h2>Apple iPhone 16 Pro</h2>
+
+<p>
+The Apple iPhone 16 Pro is powered by the latest A18 Pro chip,
+delivering exceptional performance, improved battery life, and an
+advanced camera system.
+</p>
+
+<h3>Key Features</h3>
+
+<ul>
+    <li>6.3-inch Super Retina XDR OLED Display</li>
+    <li>A18 Pro Processor</li>
+    <li>48MP Triple Camera System</li>
+    <li>128GB / 256GB / 512GB Storage</li>
+    <li>Face ID & USB-C</li>
+</ul>
+
+<img src="https://example.com/images/iphone16.jpg">
+
+<h3>What's in the Box?</h3>
+
+<ul>
+    <li>Apple iPhone 16 Pro</li>
+    <li>USB-C Cable</li>
+    <li>User Manual</li>
+</ul>

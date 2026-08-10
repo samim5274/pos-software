@@ -1,0 +1,197 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+
+class Product extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'category_id',
+        'subcategory_id',
+        'brand_id',
+        'name',
+        'slug',
+        'sku',
+        'summary',
+        'description',
+        'purchase_price',
+        'price',
+        'discount',
+        'stock_quantity',
+        'min_stock',
+        'is_active',
+        'approval_status',
+        'admin_remark',
+        'is_featured',
+        'is_on_sale',
+        'meta_title',
+        'meta_description',
+        'meta_keywords',
+        'sv',
+        'point',
+        'total_click',
+    ];
+
+    protected $casts = [
+        'purchase_price' => 'decimal:2',
+        'price' => 'decimal:2',
+        'discount' => 'decimal:2',
+        'stock_quantity' => 'integer',
+        'min_stock' => 'integer',
+        'is_active' => 'boolean',
+        'approval_status' => 'integer',
+        'is_featured' => 'boolean',
+        'is_on_sale' => 'boolean',
+    ];
+
+    const STATUS_PENDING = 1;
+    const STATUS_APPROVED = 2;
+    const STATUS_REJECTED = 3;
+
+    protected static function booted()
+    {
+        static::creating(function ($product) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Generate Slug
+            |--------------------------------------------------------------------------
+            */
+
+            if (blank($product->slug)) {
+
+                $baseSlug = Str::slug($product->name);
+
+                $slug = $baseSlug;
+
+                $count = 2;
+
+                while (
+                    static::where('slug', $slug)->exists()
+                ) {
+                    $slug = $baseSlug.'-'.$count;
+                    $count++;
+                }
+
+                $product->slug = $slug;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Generate SKU
+            |--------------------------------------------------------------------------
+            */
+
+            if (blank($product->sku)) {
+
+                do {
+
+                    $sku = 'PRD-'.strtoupper(Str::random(8));
+
+                } while (
+                    static::where('sku', $sku)->exists()
+                );
+
+                $product->sku = $sku;
+            }
+
+        });
+
+        static::updating(function ($product) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Update slug only when name changed
+            |--------------------------------------------------------------------------
+            */
+
+            if ($product->isDirty('name')) {
+
+                $baseSlug = Str::slug($product->name);
+
+                $slug = $baseSlug;
+
+                $count = 2;
+
+                while (
+                    static::where('slug', $slug)
+                        ->where('id', '!=', $product->id)
+                        ->exists()
+                ) {
+                    $slug = $baseSlug.'-'.$count;
+                    $count++;
+                }
+
+                $product->slug = $slug;
+            }
+
+        });
+    }
+
+    // Relationships
+    public function category()
+    {
+        return $this->belongsTo(ProductCategory::class);
+    }
+
+    public function subcategory()
+    {
+        return $this->belongsTo(ProductSubCategory::class);
+    }
+
+    public function brand()
+    {
+        return $this->belongsTo(Brand::class);
+    }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(ProductImage::class, 'product_id');
+    }
+
+    public function stock()
+    {
+        return $this->hasMany(Stock::class);
+    }
+
+    public function variants()
+    {
+        return $this->hasMany(ProductVariant::class, 'product_id');
+    }
+
+    public function ratings()
+    {
+        return $this->hasMany(ProductRating::class);
+    }
+
+    // Scope
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function scopeApproved($query)
+    {
+        return $query->where('approval_status', self::STATUS_APPROVED);
+    }
+
+    public function scopePublished($query)
+    {
+        return $query->active()->approved();
+    }
+
+    public function coupons()
+    {
+        return $this->belongsToMany(
+            Coupon::class,
+            'coupon_products'
+        );
+    }
+}

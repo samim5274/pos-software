@@ -1,0 +1,488 @@
+/* --- 04: Setup vue js with tailwind ---*/
+npm create vite@latest my-vue-app -- --template vue
+cd my-vue-app
+npm install
+
+Package install - 
+npm install pinia vue-router axios
+npm install bootstrap bootstrap-icons
+npm install @fortawesome/fontawesome-free
+
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+
+/* ----------  Note: If error setup for tailwind setup ---*/
+npm install -D tailwindcss@3 postcss autoprefixer
+npx tailwindcss init -p
+
+/*---------- tailwind.config.js ফাইলে content এইভাবে:
+/** @type {import('tailwindcss').Config} */
+export default {
+    darkMode: 'class',
+
+    content: [
+        "./index.html",
+        "./src/**/*.{vue,js,ts,jsx,tsx}",
+    ],
+
+    theme: {
+        extend: {},
+    },
+
+    plugins: [],
+}
+
+src/style.css (Vite default থাকে) — এটাতে Tailwind directives:
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+src/main.js এ এটা থাকা লাগবে:
+import { createApp } from 'vue'
+import './style.css'
+import App from './App.vue'
+
+createApp(App).mount('#app')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+
+# src/main.js
+
+```js
+import { createApp } from "vue";
+import { createPinia } from "pinia";
+
+import App from "./App.vue";
+import router from "./router";
+
+import "./assets/css/app.css";
+
+import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap/dist/js/bootstrap.bundle.min.js";
+
+import "bootstrap-icons/font/bootstrap-icons.css";
+import "@fortawesome/fontawesome-free/css/all.min.css";
+
+const app = createApp(App);
+
+app.use(createPinia());
+app.use(router);
+
+app.mount("#app");
+```
+
+---
+
+# src/App.vue
+
+```vue
+<script setup>
+import { onMounted } from 'vue'
+import { useThemeStore } from '@/stores/theme'
+
+const themeStore = useThemeStore()
+
+onMounted(() => {
+    themeStore.initTheme()
+})
+</script>
+
+<template>
+    <router-view />
+</template>
+```
+
+---
+
+# src/router/index.js
+
+```js
+import { createRouter, createWebHistory } from "vue-router";
+
+import Dashboard from "@/pages/Dashboard.vue";
+import Login from "@/pages/Login.vue";
+
+const routes = [
+    {
+        path: "/",
+        name: "dashboard",
+        component: Dashboard,
+    },
+    {
+        path: "/login",
+        name: "login",
+        component: Login,
+    },
+];
+
+const router = createRouter({
+    history: createWebHistory(),
+    routes,
+});
+
+export default router;
+```
+
+---
+
+# src/stores/theme.js
+
+```js
+import { defineStore } from "pinia";
+import { ref } from "vue";
+
+export const useThemeStore = defineStore("theme", () => {
+    const darkMode = ref(false);
+
+    const initTheme = () => {
+        const theme = localStorage.getItem("theme");
+
+        darkMode.value = theme === "dark";
+
+        applyTheme();
+    };
+
+    const toggleTheme = () => {
+        darkMode.value = !darkMode.value;
+
+        localStorage.setItem(
+            "theme",
+            darkMode.value ? "dark" : "light"
+        );
+
+        applyTheme();
+    };
+
+    const applyTheme = () => {
+        document.documentElement.classList.toggle(
+            "dark",
+            darkMode.value
+        );
+    };
+
+    return {
+        darkMode,
+        toggleTheme,
+        initTheme,
+    };
+});
+```
+
+---
+
+# src/stores/auth.js
+
+```js
+import { defineStore } from "pinia";
+import { ref } from "vue";
+
+export const useAuthStore = defineStore("auth", () => {
+    const user = ref(null);
+    const token = ref(localStorage.getItem("token"));
+
+    const login = (data) => {
+        user.value = data.user;
+        token.value = data.token;
+
+        localStorage.setItem("token", data.token);
+    };
+
+    const logout = () => {
+        user.value = null;
+        token.value = null;
+
+        localStorage.removeItem("token");
+    };
+
+    return {
+        user,
+        token,
+        login,
+        logout,
+    };
+});
+```
+
+---
+
+# src/services/api.js
+
+```js
+import axios from "axios";
+
+const api = axios.create({
+    baseURL: "http://127.0.0.1:8000/api",
+    headers: {
+        Accept: "application/json",
+    },
+});
+
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem("token");
+
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    return config;
+});
+
+export default api;
+```
+
+---
+
+# src/layouts/AdminLayout.vue
+
+```vue
+<script setup>
+import ThemeSwitcher from "@/components/ThemeSwitcher.vue";
+</script>
+
+<template>
+    <div
+        class="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-white"
+    >
+        <nav
+            class="bg-white dark:bg-slate-900 shadow px-6 py-4 flex justify-between"
+        >
+            <h3 class="font-bold">
+                Admin Panel
+            </h3>
+
+            <ThemeSwitcher />
+        </nav>
+
+        <main class="p-6">
+            <slot />
+        </main>
+    </div>
+</template>
+```
+
+---
+
+# src/layouts/AuthLayout.vue
+
+```vue
+<template>
+    <div
+        class="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900"
+    >
+        <slot />
+    </div>
+</template>
+```
+
+---
+
+# src/components/ThemeSwitcher.vue
+
+```vue
+<script setup>
+import { useThemeStore } from "@/stores/theme";
+
+const themeStore = useThemeStore();
+</script>
+
+<template>
+    <button
+        @click="themeStore.toggleTheme"
+        class="btn btn-primary"
+    >
+        <i
+            :class="
+                themeStore.darkMode
+                    ? 'fas fa-sun'
+                    : 'fas fa-moon'
+            "
+        ></i>
+    </button>
+</template>
+```
+
+---
+
+# src/pages/Dashboard.vue
+
+```vue
+<script setup>
+import AdminLayout from "@/layouts/AdminLayout.vue";
+</script>
+
+<template>
+    <AdminLayout>
+
+        <div
+            class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow"
+        >
+            <h1 class="text-2xl font-bold">
+                Dashboard
+            </h1>
+
+            <p class="mt-2">
+                Welcome to Admin Dashboard.
+            </p>
+        </div>
+
+    </AdminLayout>
+</template>
+```
+
+---
+
+# src/pages/Login.vue
+
+```vue
+<script setup>
+import AuthLayout from "@/layouts/AuthLayout.vue";
+</script>
+
+<template>
+    <AuthLayout>
+
+        <div
+            class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow w-full max-w-md"
+        >
+            <h2 class="text-2xl font-bold mb-4">
+                Login
+            </h2>
+
+            <input
+                type="email"
+                placeholder="Email"
+                class="form-control mb-3"
+            />
+
+            <input
+                type="password"
+                placeholder="Password"
+                class="form-control mb-3"
+            />
+
+            <button class="btn btn-primary w-100">
+                Login
+            </button>
+        </div>
+
+    </AuthLayout>
+</template>
+```
+
+---
+
+# src/assets/css/app.css
+
+```css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    margin: 0;
+    padding: 0;
+}
+
+.dark {
+    color-scheme: dark;
+}
+```
+
+---
+
+# vite.config.js
+
+```js
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+
+export default defineConfig({
+    plugins: [vue()],
+
+    resolve: {
+        alias: {
+            "@": "/src",
+        },
+    },
+});
+```
+
+---
+
+# tailwind.config.js
+
+```js
+/** @type {import('tailwindcss').Config} */
+export default {
+    darkMode: "class",
+
+    content: [
+        "./index.html",
+        "./src/**/*.{vue,js,ts,jsx,tsx}",
+    ],
+
+    theme: {
+        extend: {},
+    },
+
+    plugins: [],
+};
+```
+
+এর পরে শুধু:
+
+```bash
+npm install
+npm run dev
+```
