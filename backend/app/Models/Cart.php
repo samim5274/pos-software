@@ -12,13 +12,12 @@ class Cart extends Model
 
     protected $fillable = [
         'reg',
-        'product_id',
-        'variant_id',
         'user_id',
+        'product_id',
         'quantity',
         'price',
         'discount',
-        'payable_amount',
+        'total_amount',
         'point',
         'note',
     ];
@@ -37,11 +36,6 @@ class Cart extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
-    }
-
-    public function variant(): BelongsTo
-    {
-        return $this->belongsTo(ProductVariant::class, 'variant_id');
     }
 
     // === Accessors & Logic ===

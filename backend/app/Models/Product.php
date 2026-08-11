@@ -39,7 +39,6 @@ class Product extends Model
 
         // Status
         'is_active',
-        'approval_status',
         'admin_remark',
 
         // Point System
@@ -55,7 +54,6 @@ class Product extends Model
         'min_stock'       => 'integer',
 
         'is_active'       => 'boolean',
-        'approval_status' => 'integer',
 
         'point'           => 'integer',
     ];
@@ -104,21 +102,6 @@ class Product extends Model
     public function isActive(): bool
     {
         return $this->is_active;
-    }
-
-    public function isApproved(): bool
-    {
-        return $this->approval_status === 2;
-    }
-
-    public function isPending(): bool
-    {
-        return $this->approval_status === 1;
-    }
-
-    public function isRejected(): bool
-    {
-        return $this->approval_status === 3;
     }
 
     public function isLowStock(): bool

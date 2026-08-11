@@ -19,7 +19,6 @@ use App\Models\Product;
 use App\Models\Stock;
 use App\Models\Cart;
 use App\Models\Order;
-use App\Models\ProductVariant;
 use App\Services\RegGenerator;
 use App\Http\Requests\ConfirmOrderRequest;
 use App\Http\Requests\CustomerOrderRequest;
@@ -41,8 +40,8 @@ use App\Models\CouponUsage;
 
 class AdminCartController extends Controller
 {
-    public function index(){
-
+    public function index()
+    {
         $userId = Auth::id();
 
         if (!$userId) {
@@ -53,7 +52,7 @@ class AdminCartController extends Controller
 
         $reg = RegGenerator::generateOrderReg($userId);
 
-        $items = Cart::with(['product.images','variant','user'])
+        $items = Cart::with(['product.images','user'])
             ->where('user_id', $userId)
             ->where('reg', $reg)
             ->get();
@@ -68,7 +67,8 @@ class AdminCartController extends Controller
     public function adminAddToCart(Request $request)
     {
         $data = $request->validate([
-            'product_id' => ['required', 'exists:products,id'],
+            'product_id'    => ['required', 'exists:products,id'],
+            'quantity'      => ['nullable', 'integer', 'min:1'],
         ]);
 
         $user = auth()->user();
@@ -76,59 +76,49 @@ class AdminCartController extends Controller
         if (!$user) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized'
+                'message' => 'Unauthorized.',
             ], 401);
         }
 
-        $reg = RegGenerator::generateOrderReg($user->id);
-        if (!$reg) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to generate cart session.'.$user->id
-            ], 500);
-        }
+        $requestedQty = (int) ($data['quantity'] ?? 1);
+
+
 
         try{
-            return DB::transaction(function () use ($data, $user, $reg) {
+            return DB::transaction(function () use ($data, $user, $requestedQty) {
 
-                $product = Product::lockForUpdate()->findOrFail($data['product_id']);
-
-                // ======================
-                // Variant handling
-                // ======================
-                $variant = null;
-
-                if (!empty($data['variant_id'])) {
-                    $variant = ProductVariant::lockForUpdate()
-                        ->where('product_id', $product->id)
-                        ->findOrFail($data['variant_id']);
+                $product = Product::lockForUpdate()->find($data['product_id']);
+                if (!$product) {
+                    throw ValidationException::withMessages([
+                        'product_id' => 'Product not found.',
+                    ]);
+                }
+                if (!$product->is_active) {
+                    throw ValidationException::withMessages([
+                        'product_id' => 'This product is currently inactive.',
+                    ]);
+                }
+                if ((int) $product->stock_quantity <= 0) {
+                    throw ValidationException::withMessages([
+                        'product_id' => 'This product is out of stock.',
+                    ]);
                 }
 
-                // ======================
-                // Stock source
-                // ======================
-                $source = $variant ?: $product;
-
-                if ($variant) {
-                    $basePrice = (float) $variant->price;
-                    $discountAmount = (float) ($variant->discount ?? 0);
-                } else {
-                    $basePrice = (float) $product->price;
-                    $discountAmount = (float) ($product->discount ?? 0);
+                $reg = RegGenerator::generateOrderReg($user->id);
+                if (!$reg) {
+                    throw ValidationException::withMessages([
+                        'reg' => 'Failed to generate cart session.',
+                    ]);
                 }
+
+                $basePrice = (float) $product->price;
+                $discountAmount = (float) ($product->discount ?? 0);
                 $finalPrice = max(0, $basePrice - $discountAmount);
 
                 // ======================
                 // Cart item find
                 // ======================
-                $query = Cart::where('reg', $reg)
-                    ->where('product_id', $product->id);
-
-                if ($variant) {
-                    $query->where('variant_id', $variant->id);
-                } else {
-                    $query->whereNull('variant_id');
-                }
+                $query = Cart::where('reg', $reg)->where('product_id', $product->id);
 
                 $cartItem = $query->first();
 
@@ -147,18 +137,17 @@ class AdminCartController extends Controller
                         'quantity'          => $newQty,
                         'price'             => $basePrice,
                         'discount'          => $discountAmount,
-                        'payable_amount'    => $finalPrice,
+                        'total_amount'    => $finalPrice,
                     ]);
                 } else {
                     $cartItem = Cart::create([
                         'reg'               => $reg,
                         'user_id'           => $user->id,
                         'product_id'        => $product->id,
-                        'variant_id'        => $variant?->id,
                         'quantity'          => $requestedQty,
                         'price'             => $basePrice,
                         'discount'          => $discountAmount,
-                        'payable_amount'    => $finalPrice,
+                        'total_amount'    => $finalPrice,
                         'point'             => $product->point,
                     ]);
                 }
@@ -172,7 +161,6 @@ class AdminCartController extends Controller
                     'data' => [
                         'cart_id'    => $cartItem->id,
                         'product_id' => $product->id,
-                        'variant_id' => $variant?->id,
                         'quantity'   => $cartItem->quantity,
                         'price'      => (float) $finalPrice,
                         'total'      => (float) ($finalPrice * $cartItem->quantity)
@@ -181,14 +169,27 @@ class AdminCartController extends Controller
 
             });
         } catch (\Exception $e) {
+            Log::error('POS Add To Cart Failed', [
+                'user_id'    => $user->id,
+                'product_id' => $data['product_id'] ?? null,
+                'quantity'   => $requestedQty,
+                'message'    => $e->getMessage(),
+                'file'       => $e->getFile(),
+                'line'       => $e->getLine(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
-            ], $e->getCode() ?: 500);
+                'message' => 'Unable to add product to cart. Please try again.',
+                // debug only
+                // 'message' => $e->getMessage(),
+                // 'file'    => $e->getFile(),
+                // 'line'    => $e->getLine(),
+            ], 500);
         }
     }
 
-    public function updateQty(Request $request, $reg, $product_id, $variant_id)
+    public function updateQty(Request $request, $reg, $product_id)
     {
         $request->validate([
             'quantity' => 'required|integer|min:1|max:100',
@@ -196,11 +197,6 @@ class AdminCartController extends Controller
 
         $cartItem = Cart::where('reg', $reg)
             ->where('product_id', $product_id)
-            ->when(
-                !empty($variant_id) && $variant_id !== 'null',
-                fn ($query) => $query->where('variant_id', $variant_id),
-                fn ($query) => $query->whereNull('variant_id')
-            )
             ->first();
 
         if (!$cartItem) {
@@ -221,7 +217,7 @@ class AdminCartController extends Controller
         ]);
     }
 
-    public function removeToCart(Request $request, $cart_id, $reg, $product_id, $variant_id){
+    public function removeToCart(Request $request, $cart_id, $reg, $product_id){
 
         $user = auth()->user();
 
@@ -233,7 +229,7 @@ class AdminCartController extends Controller
         }
 
         try{
-            if (!$reg || !$product_id || !$variant_id) {
+            if (!$reg || !$product_id) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid request data'
@@ -244,11 +240,6 @@ class AdminCartController extends Controller
                 ->where('user_id', $user->id)
                 ->where('reg', $reg)
                 ->where('product_id', $product_id)
-                ->when(
-                    !empty($variant_id) && $variant_id !== 'null',
-                    fn ($query) => $query->where('variant_id', $variant_id),
-                    fn ($query) => $query->whereNull('variant_id'),
-                )
                 ->first();
 
             if (!$cartItem) {
@@ -287,7 +278,7 @@ class AdminCartController extends Controller
     public function getCartItem($reg)
     {
         try {
-            $items = Cart::with(['product.images','variant','user'])
+            $items = Cart::with(['product.images','user'])
                         ->where('reg', $reg)->get();
 
             if ($items->isEmpty()) {
@@ -487,7 +478,7 @@ class AdminCartController extends Controller
                     'coupon_discount' => $couponDiscount,
                     'shipping_charge' => $deliveryCharge,
                     'discount'        => $totalDiscount,
-                    'payable_amount'  => $payableAmount,
+                    'total_amount'  => $payableAmount,
                     'paid_amount'     => 0,
                     'due_amount'      => $payableAmount,
                     'currency'        => Order::CURRENCY_BDT,
@@ -541,9 +532,9 @@ class AdminCartController extends Controller
                         'sender_mobile'        => $validated['sender_mobile'] ?? null,
                         'sender_name'          => $validated['sender_name'] ?? null,
 
-                        'amount'      => $order->payable_amount,
+                        'amount'      => $order->total_amount,
                         'gateway_fee' => 0,
-                        'net_amount'  => $order->payable_amount,
+                        'net_amount'  => $order->total_amount,
                         'currency'    => OrderPayment::CURRENCY_BDT,
 
                         'status'  => OrderPayment::STATUS_PENDING,
@@ -631,7 +622,7 @@ class AdminCartController extends Controller
                         'order_id'       => $order->id,
                         'order_number'   => $order->reg,
                         'payment_status' => $order->payment_status,
-                        'payable_amount' => $order->payable_amount,
+                        'total_amount' => $order->total_amount,
                     ],
                 ], 201);
             });

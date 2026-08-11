@@ -27,21 +27,20 @@ return new class extends Migration
             $table->decimal('purchase_price', 12, 2);
             $table->decimal('price', 12, 2);
             $table->decimal('discount', 12, 2)->nullable();
-            
+
             $table->integer('stock_quantity')->default(0);
             $table->integer('min_stock')->default(5);
 
             $table->boolean('is_active')->default(true);
 
             // ১ = Pending, ২ = Approved, ৩ = Rejected
-            $table->tinyInteger('approval_status')->default(1);
             $table->text('admin_remark')->nullable();
 
             $table->integer('point')->default(0);
 
             $table->timestamps();
 
-            $table->index(['approval_status', 'is_active']);
+            $table->index(['is_active']);
             $table->index('category_id');
             $table->index('subcategory_id');
             $table->index('brand_id');

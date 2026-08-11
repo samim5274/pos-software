@@ -56,6 +56,23 @@
                     </button>
                 </li>
 
+                <!-- Cart -->
+                <li>
+                    <button
+                        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition
+                            focus:outline-none focus:ring-2 focus:ring-slate-500/40
+                            hover:bg-slate-100 dark:hover:bg-white/10"
+                        :class="activeKey === 'cart'
+                        ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-white/10 dark:text-white dark:ring-white/10'
+                        : ''"
+                        @click="pick('cart')">
+                        <span class="opacity-90 w-5 text-center">
+                        <i class="fa-solid fa-cart-plus"></i>
+                        </span>
+                        <span class="text-sm font-medium">Cart</span>
+                    </button>
+                </li>
+
                 <!-- Product Details Dropdown -->
                 <li>
                     <button
@@ -305,6 +322,7 @@ const reportPagesOpen = ref(false);
 const routeMap = {
     dashboard: "/admin/dashboard",
     profile: "/admin/profile",
+    cart: "/sale-cart",
 
     products: "/admin/products",
     create: "/admin/create-product",
@@ -359,7 +377,8 @@ const routeMap = {
 const routeMatch = [
     { key: "dashboard", prefixes: ["/admin/dashboard"] },
     { key: "profile", prefixes: ["/admin/profile"] },
-    { key: "tree", prefixes: ["/admin/tree"] },
+    { key: "cart", prefixes: ["/sale-cart"] },
+
     { key: "setting", prefixes: ["/admin/setting"] },
 
     { key: "products", prefixes: ["/admin/products", "/admin/product-edit"] },

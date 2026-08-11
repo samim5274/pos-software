@@ -29,6 +29,16 @@ const AdminProductSetting = () => import('../components/Dashboard/admin/product/
 
 
 
+
+
+
+const SaleCart = () => import('../components/Dashboard/admin/cart/cart.vue');
+
+
+
+
+
+
 const routes = [
     // Auth Routes
     { path: '/login', component: Login, meta: {title: "Login - Mercuviax - Pos Software | Bangladesh's Best POS Software Company"} },
@@ -51,7 +61,7 @@ const routes = [
 
     // Admin Route 
     { path: "/", component: AdminDashboard, meta: { title: "Dashboard - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
-    
+
     { path: "/admin/dashboard", component: AdminDashboard, meta: { requiresAuth: true, roles: ['admin', 'super_admin'], title: "Admin Dashboard - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
     { path: "/admin/profile", component: AdminProfile, meta: { requiresAuth: true, roles: ['admin', 'super_admin'], title: "Profile - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
     
@@ -61,6 +71,16 @@ const routes = [
     { path: "/admin/create-product", component: AdminCreateProduct, meta: { requiresAuth: true, roles: ['admin', 'super_admin'], title: "Create Product - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
     { path: "/admin/product/setting", component: AdminProductSetting, meta: { requiresAuth: true, roles: ['admin', 'super_admin'], title: "Product Settings - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
     { path: '/admin/product-edit/:slug', component: AdminProductEdit, meta: { requiresAuth: true, roles: ['admin', 'super_admin'], title: "Edit Product - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" } },
+    
+    
+    
+    
+    
+    
+    
+    
+    // Sale Cart
+    { path: '/sale-cart', component: SaleCart, meta: { requiresAuth: true, roles: ['admin', 'super_admin', 'staff'], title: "Sale Cart - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" } },
 ]
 
 

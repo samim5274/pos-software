@@ -256,24 +256,24 @@ Route::middleware(['auth:sanctum'])->group(function () {
 //     Route::get('/suggestions', [SearchController::class, 'suggestions']);
 // });
 
-// Route::middleware('auth:sanctum')->group(function () {
-//     Route::prefix('admin/cart')->group(function () {
-//         Route::get('/', [AdminCartController::class, 'index']);
-//         Route::get('/{reg}', [AdminCartController::class, 'getCartItem']);
-//         Route::post('/add-to-cart', [AdminCartController::class, 'adminAddToCart']);
-//         Route::post('/qty-update/{reg}/{product_id}/{variant_id}', [AdminCartController::class, 'updateQty']);
-//         Route::post('/remove-to-cart/{cart_id}/{reg}/{product_id}/{variant_id}', [AdminCartController::class, 'removeToCart']);
-//         Route::post('confirm/order/{reg}', [AdminCartController::class, 'confirmOrder']);
-//     });
+Route::middleware('auth:sanctum')->group(function () {
+    Route::prefix('admin/cart')->group(function () {
+        Route::get('/', [AdminCartController::class, 'index']);
+        Route::get('/{reg}', [AdminCartController::class, 'getCartItem']);
+        Route::post('/add-to-cart', [AdminCartController::class, 'adminAddToCart']);
+        Route::post('/qty-update/{reg}/{product_id}', [AdminCartController::class, 'updateQty']);
+        Route::post('/remove-to-cart/{cart_id}/{reg}/{product_id}', [AdminCartController::class, 'removeToCart']);
+        Route::post('confirm/order/{reg}', [AdminCartController::class, 'confirmOrder']);
+    });
 
-//     Route::prefix('cart')->group(function () {
-//         Route::get('/', [CartController::class, 'index']);
-//         Route::get('/{reg}', [CartController::class, 'getCartItem']);
-//         Route::post('/add-to-cart', [CartController::class, 'addToCart']);
-//         Route::post('/qty-update/{reg}/{product_id}/{variant_id}', [CartController::class, 'updateQty']);
-//         Route::post('/remove-to-cart/{cart_id}/{reg}/{product_id}/{variant_id}', [CartController::class, 'removeToCart']);
-//     });
-// });
+    // Route::prefix('cart')->group(function () {
+    //     Route::get('/', [CartController::class, 'index']);
+    //     Route::get('/{reg}', [CartController::class, 'getCartItem']);
+    //     Route::post('/add-to-cart', [CartController::class, 'addToCart']);
+    //     Route::post('/qty-update/{reg}/{product_id}/{variant_id}', [CartController::class, 'updateQty']);
+    //     Route::post('/remove-to-cart/{cart_id}/{reg}/{product_id}/{variant_id}', [CartController::class, 'removeToCart']);
+    // });
+});
 
 // =============================
 // Product Ratting

@@ -38,9 +38,9 @@ class AppServiceProvider extends ServiceProvider
             );
 
             return [
-                Limit::perMinute(5)->by('ip:' . $request->ip()),
-                Limit::perMinute(3)->by('email:' . $email),
-                Limit::perMinute(1)->by('device:' . $device),
+                Limit::perMinute(10)->by('ip:' . $request->ip()),
+                Limit::perMinute(5)->by('email:' . $email),
+                Limit::perMinute(5)->by('device:' . $device),
             ];
         });
     }
