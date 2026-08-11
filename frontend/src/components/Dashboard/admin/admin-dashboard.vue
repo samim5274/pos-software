@@ -13,7 +13,7 @@
                     @close="mobileMenu = false" />
 
                 <div class="flex-1 min-w-0 flex flex-col">
-                    <AdminMain />
+                    <!-- <AdminMain /> -->
                 </div>
             </div>
             <FooterSection />
@@ -24,7 +24,6 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import { useHead } from '@vueuse/head';
 import { useRouter } from 'vue-router';
 
 import AdminNavbar from './admin-navbar.vue';

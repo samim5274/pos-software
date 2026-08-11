@@ -256,9 +256,10 @@ import { reactive, ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api, {makeImg} from '../../../../services/api.js'
 
-import Navbar from "../vendor/vendor-navbar.vue";
-import HeaderSection from "../vendor/vendor-header.vue";
-import Message from '../../Message/message.vue'
+import Navbar from "../../admin/admin-navbar.vue";
+import HeaderSection from "../../admin/admin-header.vue";
+import Message from '../../../Message/message.vue'
+import FooterSection from "../../../footer.vue";
 
 const router = useRouter()
 

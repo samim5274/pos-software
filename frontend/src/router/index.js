@@ -18,6 +18,11 @@ const AdminDashboard = () => import('../components/Dashboard/admin/admin-dashboa
 const AdminProfile = () => import('../components/Dashboard/admin/admin-profile.vue');
 
 
+// product import
+const AdminProductList = () => import('../components/Dashboard/admin/product/product-list.vue');
+const AdminCreateProduct = () => import('../components/Dashboard/admin/product/create-product.vue');
+
+
 
 
 
@@ -46,6 +51,11 @@ const routes = [
     { path: "/", component: AdminDashboard, meta: { title: "Dashboard - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
     { path: "/admin/dashboard", component: AdminDashboard, meta: { title: "Admin Dashboard - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
     { path: "/admin/profile", component: AdminProfile, meta: { title: "Profile - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
+    
+
+    // Product routes
+    { path: "/admin/products", component: AdminProductList, meta: { title: "Products List - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
+    { path: "/admin/create-product", component: AdminCreateProduct, meta: { title: "Create Product - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
 ]
 
 
