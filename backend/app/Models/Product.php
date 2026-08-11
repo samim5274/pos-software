@@ -7,148 +7,87 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Product extends Model
 {
     use HasFactory;
 
     protected $fillable = [
+        // Relations
         'category_id',
         'subcategory_id',
         'brand_id',
+
+        // Basic Information
         'name',
         'slug',
         'sku',
+
+        // Description
         'summary',
         'description',
+
+        // Pricing
         'purchase_price',
         'price',
         'discount',
+
+        // Inventory
         'stock_quantity',
         'min_stock',
+
+        // Status
         'is_active',
         'approval_status',
         'admin_remark',
-        'is_featured',
-        'is_on_sale',
-        'meta_title',
-        'meta_description',
-        'meta_keywords',
-        'sv',
+
+        // Point System
         'point',
-        'total_click',
     ];
 
     protected $casts = [
-        'purchase_price' => 'decimal:2',
-        'price' => 'decimal:2',
-        'discount' => 'decimal:2',
-        'stock_quantity' => 'integer',
-        'min_stock' => 'integer',
-        'is_active' => 'boolean',
+        'purchase_price'  => 'decimal:2',
+        'price'           => 'decimal:2',
+        'discount'        => 'decimal:2',
+
+        'stock_quantity'  => 'integer',
+        'min_stock'       => 'integer',
+
+        'is_active'       => 'boolean',
         'approval_status' => 'integer',
-        'is_featured' => 'boolean',
-        'is_on_sale' => 'boolean',
+
+        'point'           => 'integer',
     ];
 
-    const STATUS_PENDING = 1;
-    const STATUS_APPROVED = 2;
-    const STATUS_REJECTED = 3;
+    /*
+    |--------------------------------------------------------------------------
+    | Relationships
+    |--------------------------------------------------------------------------
+    */
 
-    protected static function booted()
+    public function category(): BelongsTo
     {
-        static::creating(function ($product) {
-
-            /*
-            |--------------------------------------------------------------------------
-            | Generate Slug
-            |--------------------------------------------------------------------------
-            */
-
-            if (blank($product->slug)) {
-
-                $baseSlug = Str::slug($product->name);
-
-                $slug = $baseSlug;
-
-                $count = 2;
-
-                while (
-                    static::where('slug', $slug)->exists()
-                ) {
-                    $slug = $baseSlug.'-'.$count;
-                    $count++;
-                }
-
-                $product->slug = $slug;
-            }
-
-            /*
-            |--------------------------------------------------------------------------
-            | Generate SKU
-            |--------------------------------------------------------------------------
-            */
-
-            if (blank($product->sku)) {
-
-                do {
-
-                    $sku = 'PRD-'.strtoupper(Str::random(8));
-
-                } while (
-                    static::where('sku', $sku)->exists()
-                );
-
-                $product->sku = $sku;
-            }
-
-        });
-
-        static::updating(function ($product) {
-
-            /*
-            |--------------------------------------------------------------------------
-            | Update slug only when name changed
-            |--------------------------------------------------------------------------
-            */
-
-            if ($product->isDirty('name')) {
-
-                $baseSlug = Str::slug($product->name);
-
-                $slug = $baseSlug;
-
-                $count = 2;
-
-                while (
-                    static::where('slug', $slug)
-                        ->where('id', '!=', $product->id)
-                        ->exists()
-                ) {
-                    $slug = $baseSlug.'-'.$count;
-                    $count++;
-                }
-
-                $product->slug = $slug;
-            }
-
-        });
+        return $this->belongsTo(
+            ProductCategory::class,
+            'category_id'
+        );
     }
 
-    // Relationships
-    public function category()
+    public function subcategory(): BelongsTo
     {
-        return $this->belongsTo(ProductCategory::class);
+        return $this->belongsTo(
+            ProductSubCategory::class,
+            'subcategory_id'
+        );
     }
 
-    public function subcategory()
+    public function brand(): BelongsTo
     {
-        return $this->belongsTo(ProductSubCategory::class);
-    }
-
-    public function brand()
-    {
-        return $this->belongsTo(Brand::class);
+        return $this->belongsTo(
+            Brand::class,
+            'brand_id'
+        );
     }
 
     public function images(): HasMany
@@ -156,42 +95,34 @@ class Product extends Model
         return $this->hasMany(ProductImage::class, 'product_id');
     }
 
-    public function stock()
+    /*
+    |--------------------------------------------------------------------------
+    | Helpers
+    |--------------------------------------------------------------------------
+    */
+
+    public function isActive(): bool
     {
-        return $this->hasMany(Stock::class);
+        return $this->is_active;
     }
 
-    public function variants()
+    public function isApproved(): bool
     {
-        return $this->hasMany(ProductVariant::class, 'product_id');
+        return $this->approval_status === 2;
     }
 
-    public function ratings()
+    public function isPending(): bool
     {
-        return $this->hasMany(ProductRating::class);
+        return $this->approval_status === 1;
     }
 
-    // Scope
-    public function scopeActive($query)
+    public function isRejected(): bool
     {
-        return $query->where('is_active', true);
+        return $this->approval_status === 3;
     }
 
-    public function scopeApproved($query)
+    public function isLowStock(): bool
     {
-        return $query->where('approval_status', self::STATUS_APPROVED);
-    }
-
-    public function scopePublished($query)
-    {
-        return $query->active()->approved();
-    }
-
-    public function coupons()
-    {
-        return $this->belongsToMany(
-            Coupon::class,
-            'coupon_products'
-        );
+        return $this->stock_quantity <= $this->min_stock;
     }
 }

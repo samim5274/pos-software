@@ -26,7 +26,8 @@ use App\Models\ProductImage;
 
 class ProductController extends Controller
 {
-    public function index(){
+    public function index()
+    {
         try{
             $products = Cache::remember('public_products', now()->addMinutes(30), function () {
                 return Product::with([
@@ -36,7 +37,6 @@ class ProductController extends Controller
                         'images:id,product_id,image_path,is_primary'
                     ])
                     ->where('is_active', 1)
-                    ->where('approval_status', 1)
                     ->get();
             });
 
@@ -53,7 +53,8 @@ class ProductController extends Controller
         }
     }
 
-    public function getCategory(){
+    public function getCategory()
+    {
         try{
             $productCategories = Cache::remember('public_product_categories', now()->addDay(), function () {
                 return ProductCategory::where('is_active', 1)
@@ -72,7 +73,8 @@ class ProductController extends Controller
         }
     }
 
-    public function getSubCategory(){
+    public function getSubCategory()
+    {
         try{
             $productSubCategories = Cache::remember('public_product_subcategories', now()->addDay(), function () {
                 return ProductSubCategory::with('category:id,name')
@@ -91,7 +93,8 @@ class ProductController extends Controller
         }
     }
 
-    public function getBrand(){
+    public function getBrand()
+    {
         try{
             $productBrands = Cache::remember('public_brands', now()->addDay(), function () {
                 return Brand::where('is_active', 1)
@@ -569,16 +572,23 @@ class ProductController extends Controller
         }
     }
 
-    public function store(StoreProductRequest $request){
+
+
+
+
+
+
+
+
+
+    public function store(StoreProductRequest $request)
+    {
 
         $user = auth('sanctum')->user();
         $data = $request->validated();
 
         try {
             return DB::transaction(function () use ($request, $data) {
-
-                // SEO Auto Generate
-                // Meta title, description and keyword auto generate
 
                 $brand           = Brand::find($data['brand']);
                 $category        = ProductCategory::find($data['category']);
@@ -589,32 +599,6 @@ class ProductController extends Controller
                 $subcategoryName = $subcategory?->name;
 
                 $productName     = trim($data['name']);
-
-                $metaTitle = !empty($data['title']) ? $data['title'] :
-                                Str::limit( "{$productName} | {$brandName} | Buy Online in Bangladesh | Ogrova", 60, '' );
-
-                $metaDescription = !empty($data['meta_description']) ? $data['meta_description'] :
-                                        Str::limit( "Buy {$productName} by {$brandName} at the best price in Bangladesh from Ogrova. 100% genuine {$categoryName}, fast delivery, cash on delivery, secure online payment and nationwide shipping.",
-                                        160, '' );
-
-                $metaKeywords = !empty($data['keywords'])
-                    ? $data['keywords']
-                    : implode(', ', array_unique(array_filter([
-                        $productName,
-                        "{$productName} Bangladesh",
-                        "Buy {$productName}",
-                        $brandName,
-                        "{$brandName} Bangladesh",
-                        $categoryName,
-                        $subcategoryName,
-                        "Best Price Bangladesh",
-                        "Online Shopping Bangladesh",
-                        "Original Product",
-                        "Cash On Delivery",
-                        "Fast Delivery",
-                        "Ogrova",
-                    ])));
-
 
                 $product = Product::create([
                     'name'             => $data['name'],
@@ -632,36 +616,21 @@ class ProductController extends Controller
 
                     'slug'             => $data['slug'] ?? null,
 
-                    'meta_title'       => $metaTitle,
-                    'meta_keywords'    => $metaKeywords,
-                    'meta_description' => $metaDescription,
-
-                    'is_featured'      => $data['is_featured'] ?? false,
-                    'is_on_sale'       => $data['is_on_sale'] ?? false,
                     'is_active'        => $data['is_active'] ?? true,
                     'point'            => $data['point'] ?? 0,
                 ]);
-
-                if ($request->has('variants')) {
-                    foreach ($request->variants as $variant) {
-                        $product->variants()->create([
-                            'color'          => $variant['color'] ?? null,
-                            'size'           => $variant['size'] ?? null,
-                            'price'          => $variant['price'] ?? 0,
-                            'discount'       => $variant['discount'] ?? 0,
-                            'stock_quantity' => $variant['stock'] ?? 0,
-                        ]);
-                    }
-                }
 
                 if ($request->hasFile('images')) {
                     $this->storeProductImages($request->file('images'), $product);
                 }
 
+                // Forget public products cache
+                Cache::forget('public_products');
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Product created successfully.',
-                    'data'    => $product->load(['variants', 'images'])
+                    'data'    => $product->load(['images'])
                 ], 201);
             });
         } catch (\Throwable $e) {
@@ -695,7 +664,19 @@ class ProductController extends Controller
         }
     }
 
-    public function show($slug){
+
+
+
+
+
+
+
+
+
+
+
+    public function show($slug)
+    {
         try {
             $product = Product::with([
                 'category:id,name',
@@ -969,7 +950,8 @@ class ProductController extends Controller
         }
     }
 
-    public function delete($id){
+    public function delete($id)
+    {
         DB::beginTransaction();
 
         try {
