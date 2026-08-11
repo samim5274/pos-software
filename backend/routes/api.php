@@ -223,70 +223,70 @@ Route::middleware(['auth:sanctum'])->group(function () {
 // ======================
 // E-commerce Routes
 // ======================
-Route::prefix('public')->group(function () {
+// Route::prefix('public')->group(function () {
 
-    // Products
-    Route::get('/products', [EcommerceProductController::class, 'index']);
-    Route::get('/product/{slug}', [ProductController::class, 'show']);
+//     // Products
+//     Route::get('/products', [EcommerceProductController::class, 'index']);
+//     Route::get('/product/{slug}', [ProductController::class, 'show']);
 
-    // Categories
-    Route::get('/get-categories', [ProductController::class, 'getCategory']);
-    Route::get('/get-subcategories', [ProductController::class, 'getSubCategory']);
-    Route::get('/get-brands', [ProductController::class, 'getBrand']);
+//     // Categories
+//     Route::get('/get-categories', [ProductController::class, 'getCategory']);
+//     Route::get('/get-subcategories', [ProductController::class, 'getSubCategory']);
+//     Route::get('/get-brands', [ProductController::class, 'getBrand']);
 
-    // Category Products
-    Route::get('/category-products/{id}', [EcommerceProductController::class, 'getCategoryProducts']);
-    Route::get('/products/category/group', [EcommerceProductController::class, 'categoryGroup']);
+//     // Category Products
+//     Route::get('/category-products/{id}', [EcommerceProductController::class, 'getCategoryProducts']);
+//     Route::get('/products/category/group', [EcommerceProductController::class, 'categoryGroup']);
 
-    // Location
-    Route::get('/get-division', [EcommerceProductController::class, 'getDivision']);
-    Route::get('/get-district', [EcommerceProductController::class, 'getDistrict']);
-    Route::get('/get-upazila', [EcommerceProductController::class, 'getUpazila']);
-    Route::get('/get-police-station', [EcommerceProductController::class, 'getPoliceStation']);
+//     // Location
+//     Route::get('/get-division', [EcommerceProductController::class, 'getDivision']);
+//     Route::get('/get-district', [EcommerceProductController::class, 'getDistrict']);
+//     Route::get('/get-upazila', [EcommerceProductController::class, 'getUpazila']);
+//     Route::get('/get-police-station', [EcommerceProductController::class, 'getPoliceStation']);
 
-    // Other
-    Route::get('/{user_id}/details', [EcommerceProductController::class, 'otherDetails']);
-});
+//     // Other
+//     Route::get('/{user_id}/details', [EcommerceProductController::class, 'otherDetails']);
+// });
 
 // =============================
 // E-commerce Search
 // =============================
-Route::prefix('search')->group(function () {
-    Route::get('/', [SearchController::class, 'search']);
-    Route::get('/suggestions', [SearchController::class, 'suggestions']);
-});
+// Route::prefix('search')->group(function () {
+//     Route::get('/', [SearchController::class, 'search']);
+//     Route::get('/suggestions', [SearchController::class, 'suggestions']);
+// });
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::prefix('admin/cart')->group(function () {
-        Route::get('/', [AdminCartController::class, 'index']);
-        Route::get('/{reg}', [AdminCartController::class, 'getCartItem']);
-        Route::post('/add-to-cart', [AdminCartController::class, 'adminAddToCart']);
-        Route::post('/qty-update/{reg}/{product_id}/{variant_id}', [AdminCartController::class, 'updateQty']);
-        Route::post('/remove-to-cart/{cart_id}/{reg}/{product_id}/{variant_id}', [AdminCartController::class, 'removeToCart']);
-        Route::post('confirm/order/{reg}', [AdminCartController::class, 'confirmOrder']);
-    });
+// Route::middleware('auth:sanctum')->group(function () {
+//     Route::prefix('admin/cart')->group(function () {
+//         Route::get('/', [AdminCartController::class, 'index']);
+//         Route::get('/{reg}', [AdminCartController::class, 'getCartItem']);
+//         Route::post('/add-to-cart', [AdminCartController::class, 'adminAddToCart']);
+//         Route::post('/qty-update/{reg}/{product_id}/{variant_id}', [AdminCartController::class, 'updateQty']);
+//         Route::post('/remove-to-cart/{cart_id}/{reg}/{product_id}/{variant_id}', [AdminCartController::class, 'removeToCart']);
+//         Route::post('confirm/order/{reg}', [AdminCartController::class, 'confirmOrder']);
+//     });
 
-    Route::prefix('cart')->group(function () {
-        Route::get('/', [CartController::class, 'index']);
-        Route::get('/{reg}', [CartController::class, 'getCartItem']);
-        Route::post('/add-to-cart', [CartController::class, 'addToCart']);
-        Route::post('/qty-update/{reg}/{product_id}/{variant_id}', [CartController::class, 'updateQty']);
-        Route::post('/remove-to-cart/{cart_id}/{reg}/{product_id}/{variant_id}', [CartController::class, 'removeToCart']);
-    });
-});
+//     Route::prefix('cart')->group(function () {
+//         Route::get('/', [CartController::class, 'index']);
+//         Route::get('/{reg}', [CartController::class, 'getCartItem']);
+//         Route::post('/add-to-cart', [CartController::class, 'addToCart']);
+//         Route::post('/qty-update/{reg}/{product_id}/{variant_id}', [CartController::class, 'updateQty']);
+//         Route::post('/remove-to-cart/{cart_id}/{reg}/{product_id}/{variant_id}', [CartController::class, 'removeToCart']);
+//     });
+// });
 
 // =============================
 // Product Ratting
 // =============================
 
-Route::get('/product/ratings/{product_id}', [RatingController::class, 'getProductRating']);
+// Route::get('/product/ratings/{product_id}', [RatingController::class, 'getProductRating']);
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::prefix('ratings')->group(function () {
-        Route::get('/', [RatingController::class, 'index']);
-        Route::post('/', [RatingController::class, 'store']);
-    });
-});
+// Route::middleware('auth:sanctum')->group(function () {
+//     Route::prefix('ratings')->group(function () {
+//         Route::get('/', [RatingController::class, 'index']);
+//         Route::post('/', [RatingController::class, 'store']);
+//     });
+// });
 
 
 
@@ -298,43 +298,43 @@ Route::middleware('auth:sanctum')->group(function () {
 // =============================
 // E-commerce Admin order Routes
 // =============================
-Route::middleware('auth:sanctum')->group(function () {
-    Route::prefix('orders')->group(function () {
-        Route::get('/', [OrderController::class, 'index']);
-        Route::get('/status', [OrderController::class, 'statusFilter']);
+// Route::middleware('auth:sanctum')->group(function () {
+//     Route::prefix('orders')->group(function () {
+//         Route::get('/', [OrderController::class, 'index']);
+//         Route::get('/status', [OrderController::class, 'statusFilter']);
 
-        Route::get('/customer/{user_id}', [OrderController::class, 'getCustomerDetails']);
-        Route::get('/items/{reg}/payment/details', [EcommerceProductController::class, 'orderItemsDetails']);
+//         Route::get('/customer/{user_id}', [OrderController::class, 'getCustomerDetails']);
+//         Route::get('/items/{reg}/payment/details', [EcommerceProductController::class, 'orderItemsDetails']);
 
 
-        Route::post('/confirm/{reg}', [OrderController::class, 'confirmOrder']);
-        Route::post('/payments/{payment_id}/verify', [OrderController::class, 'verifyPayment']);
-        Route::post('/{reg}/payments', [OrderController::class, 'confirmPayment']);
-        Route::post('/update-status/{reg}', [OrderController::class, 'updateStatus']);
+//         Route::post('/confirm/{reg}', [OrderController::class, 'confirmOrder']);
+//         Route::post('/payments/{payment_id}/verify', [OrderController::class, 'verifyPayment']);
+//         Route::post('/{reg}/payments', [OrderController::class, 'confirmPayment']);
+//         Route::post('/update-status/{reg}', [OrderController::class, 'updateStatus']);
 
-        Route::patch('/delivery-charge-payments/{id}/status', [OrderController::class, 'deliveryStatusUpdate']);
+//         Route::patch('/delivery-charge-payments/{id}/status', [OrderController::class, 'deliveryStatusUpdate']);
 
-        Route::prefix('reports')->group(function(){
-            Route::get('/sale', [OrderController::class, 'reportSale']);
-            Route::get('/sale/filter', [OrderController::class, 'reportSaleFilter']);
-        });
+//         Route::prefix('reports')->group(function(){
+//             Route::get('/sale', [OrderController::class, 'reportSale']);
+//             Route::get('/sale/filter', [OrderController::class, 'reportSaleFilter']);
+//         });
 
-        Route::get('/user/details', [EcommerceProductController::class, 'userOrderDetails']);
+//         Route::get('/user/details', [EcommerceProductController::class, 'userOrderDetails']);
 
-        Route::post('/check-coupon', [CouponController::class, 'checkCoupon']);
+//         Route::post('/check-coupon', [CouponController::class, 'checkCoupon']);
 
-        Route::get('/{reg}', [OrderController::class, 'getOrderDetails']);
-    });
-});
+//         Route::get('/{reg}', [OrderController::class, 'getOrderDetails']);
+//     });
+// });
 
 // =============================
 // Coupon Controller
 // =============================
-Route::middleware('auth:sanctum')->group(function () {
-    Route::prefix('coupon')->group(function () {
-        Route::post('/check', [CouponController::class, 'checkCoupon']);
-    });
-});
+// Route::middleware('auth:sanctum')->group(function () {
+//     Route::prefix('coupon')->group(function () {
+//         Route::post('/check', [CouponController::class, 'checkCoupon']);
+//     });
+// });
 
 
 
@@ -369,17 +369,17 @@ Route::middleware('auth:sanctum')->group(function () {
 // ======================
 // Slider Routes
 // ======================
-Route::middleware('auth:sanctum')->group(function () {
-    Route::prefix('slider')->group(function () {
-        Route::get('/', [SliderController::class, 'index']);
-        Route::post('/create', [SliderController::class, 'store']);
-        Route::delete('/delete/{id}', [SliderController::class, 'delete']);
-    });
-});
+// Route::middleware('auth:sanctum')->group(function () {
+//     Route::prefix('slider')->group(function () {
+//         Route::get('/', [SliderController::class, 'index']);
+//         Route::post('/create', [SliderController::class, 'store']);
+//         Route::delete('/delete/{id}', [SliderController::class, 'delete']);
+//     });
+// });
 
-Route::prefix('slider')->group(function () {
-    Route::get('/public', [SliderController::class, 'show']);
-});
+// Route::prefix('slider')->group(function () {
+//     Route::get('/public', [SliderController::class, 'show']);
+// });
 
 
 

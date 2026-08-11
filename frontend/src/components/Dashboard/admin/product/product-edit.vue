@@ -1,17 +1,15 @@
 <template>
     <div class="min-h-screen bg-white dark:bg-slate-950 transition-colors duration-200">
         <HeaderSection
-            @open-sidebar="sidebarOpen = true"
-            @search="onSearch"
-            :isDark="isDark" @toggle-theme="toggleTheme"
+            :is-dark="isDark"
+            @toggle-dark="toggleDarkMode"
+            @toggle-menu="toggleMenu"
         />
 
         <div class="flex min-h-[calc(100vh-56px)]">
             <Navbar
-                v-model="active"
-                :open="sidebarOpen"
-                @close="sidebarOpen = false"
-            />
+                :mobile-menu="mobileMenu"
+                @close="mobileMenu = false" />
 
             <Message
                 :successMsg="successMsg"
@@ -90,7 +88,7 @@
                             <!-- Discount Price -->
                             <div>
                                 <label class="label">Discount (Optional)</label>
-                                <input type="number" v-model="form.discount" min="0" :max="form.price || 0"  @input="validateVariantDiscount(form)" class="input" placeholder="e.g BDT ৳ 400.00"/>
+                                <input type="number" v-model="form.discount" min="0" :max="form.price || 0" class="input" placeholder="e.g BDT ৳ 400.00"/>
                                 <p class="error" v-if="errors.discount">{{ errors.discount[0] }}</p>
                             </div>
                             <div>
@@ -129,94 +127,11 @@
                         </div>
 
                         <div class="grid grid-cols-3 gap-4">
-                            <!-- Is Featured -->
-                            <div>
-                                <label class="label" for="is_featured">Is Featured</label>
-                                <input type="checkbox" v-model="form.is_featured" id="is_featured" />
-                                <label for="is_featured" class="ml-2 text-slate-900 dark:text-slate-50 cursor-pointer">Featured Product</label>
-                            </div>
-
-                            <!-- Is Sale -->
-                            <div>
-                                <label class="label" for="is_on_sale">Is On Sale</label>
-                                <input type="checkbox" v-model="form.is_on_sale" id="is_on_sale"/>
-                                <label class="ml-2 text-slate-900 dark:text-slate-50 cursor-pointer" for="is_on_sale">On Sale Product</label>
-                            </div>
-
                             <!-- Is Active -->
                             <div>
                                 <label class="label" for="is_active">Is Active</label>
                                 <input type="checkbox" v-model="form.is_active" id="is_active"/>
                                 <label class="ml-2 text-slate-900 dark:text-slate-50 cursor-pointer" for="is_active">Active Product</label>
-                            </div>
-                        </div>
-                        
-                        <!-- Meta title, keyword -->
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="label">Meta title</label>
-                                <input type="text" v-model="form.meta_title" class="input" placeholder="e.g classic leather backpack"/>
-                                <p class="error" v-if="errors.title">{{ errors.title[0] }}</p>
-                            </div>
-                            <div>
-                                <label class="label">Meta keyword</label>
-                                <input type="text" v-model="form.meta_keywords" class="input" placeholder="e.g classic, leather, backpack, brown, travel"/>
-                                <p class="error" v-if="errors.keywords">{{ errors.keywords[0] }}</p>
-                            </div>
-                        </div>
-
-                        <!-- Meta description -->
-                        <div>
-                            <label class="label">Meta description</label>
-                            <textarea v-model="form.meta_description" class="input" placeholder="e.g Detailed product description"></textarea>
-                            <p class="error" v-if="errors.description">{{ errors.description[0] }}</p>
-                        </div>
-
-                        <!-- Color Variant -->
-                        <div class="space-y-4 border-y py-2 border-slate-200 dark:border-slate-700 pt-6">
-                            <div class="flex items-center justify-between">
-                                <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Product Variants</h3>
-                                <button 
-                                    type="button" 
-                                    @click="addVariant" 
-                                    class="text-sm bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 transition">
-                                    <i class="fa-solid fa-plus"></i> Add Variant
-                                </button>
-                            </div>
-
-                            <p v-if="form.variants.length === 0" class="text-sm text-slate-500 italic">No variants added. (Optional)</p>
-
-                            <div v-for="(variant, index) in form.variants" :key="index" class="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl relative border border-slate-200 dark:border-slate-700">
-                                <button 
-                                    type="button" 
-                                    @click="removeVariant(index)" 
-                                    class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-600 shadow-sm">
-                                    <i class="fa-solid fa-x"></i>
-                                </button>
-
-                                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                    <div>
-                                        <label class="text-xs font-bold text-slate-500 uppercase">Color</label>
-                                        <input v-model="variant.color" type="text" class="input mt-1" placeholder="e.g. Red / #000"/>
-                                    </div>
-                                    <div>
-                                        <label class="text-xs font-bold text-slate-500 uppercase">Size</label>
-                                        <input v-model="variant.size" type="text" class="input mt-1" placeholder="e.g. XL / 42"/>
-                                    </div>
-                                    <div>
-                                        <label class="text-xs font-bold text-slate-500 uppercase">Price</label>
-                                        <input v-model="variant.price" type="number" min="1" class="input mt-1" placeholder="Variant Price"/>
-                                    </div>
-                                    <div>
-                                        <label class="text-xs font-bold text-slate-500 uppercase">Discount</label>
-                                        <input v-model="variant.discount" type="number" min="0" :max="variant.price || 0"  @input="validateVariantDiscount(variant)" class="input mt-1" placeholder="Variant Price"/>
-                                        <p v-if="variant.discount > variant.price" class="text-red-500 text-xs mt-1">Discount cannot be greater than price.</p>
-                                    </div>
-                                    <div>
-                                        <label class="text-xs font-bold text-slate-500 uppercase">Stock</label>
-                                        <input v-model="variant.stock_quantity" type="number" class="input mt-1" placeholder="Quantity"/>
-                                    </div>
-                                </div>
                             </div>
                         </div>
 
@@ -326,6 +241,12 @@ import HeaderSection from "../../admin/admin-header.vue";
 import Message from '../../../Message/message.vue'
 import FooterSection from "../../../footer.vue";
 
+const mobileMenu = ref(false);
+
+function toggleMenu() {
+    mobileMenu.value = !mobileMenu.value;
+}
+
 const router = useRouter()
 const route = useRoute()
 
@@ -335,7 +256,6 @@ const successMsg = ref('')
 const errorMsg = ref('')
 
 const active = ref('dashboard')
-const isDark = ref(false)
 const sidebarOpen = ref(false)
 const isDragOver = ref(false)
 const preview = ref([])
@@ -368,15 +288,8 @@ const initialForm = {
     summary: '',
     description: '',
     slug: '',
-    is_featured: false,
-    is_on_sale: false,
+    
     is_active: true,
-    title: '',
-    keywords: '',
-    meta_title: '',
-    meta_keywords: '',
-    meta_description: '',
-    variants: [],
     images: [],
     point: '',
 }
@@ -428,15 +341,9 @@ async function fetchProduct() {
             summary: product.summary,
             description: product.description,
             slug: product.slug,
-            is_featured: !!product.is_featured,
-            is_on_sale: !!product.is_on_sale,
+            
             is_active: !!product.is_active,
-            title: product.title,
-            keywords: product.keywords,
-            meta_title: product.meta_title,
-            meta_keywords: product.meta_keywords,
-            meta_description: product.meta_description,
-            variants: product.variants || [],
+            
             point: product.point,
         })
 
@@ -498,18 +405,6 @@ const filteredSubCategories = computed(() => {
     return subcategories.value.filter(sub => sub.category_id === form.category)
 })
 
-function validateVariantDiscount(variant) {
-    const price = Number(variant.price) || 0;
-    const discount = Number(variant.discount) || 0;
-
-    if (discount > price) {
-        variant.discount = price;
-    }
-
-    if (discount < 0) {
-        variant.discount = 0;
-    }
-}
 
 
 
@@ -520,11 +415,6 @@ function validateVariantDiscount(variant) {
 
 
 
-// --- VARIANTS ---
-function addVariant() {
-    form.variants.push({ color: '', size: '', price: form.price || 0, discount: 0, stock: 0 })
-}
-function removeVariant(i) { form.variants.splice(i, 1) }
 
 // --- IMAGE HANDLING (REFACTORED) ---
 function setFile(file) {
@@ -596,11 +486,6 @@ async function submitEdit() {
             summary: form.summary,
             description: form.description,
             slug: form.slug,
-            meta_title: form.meta_title,
-            meta_keywords: form.meta_keywords,
-            meta_description: form.meta_description,
-            is_featured: form.is_featured ? 1 : 0,
-            is_on_sale: form.is_on_sale ? 1 : 0,
             is_active: form.is_active ? 1 : 0,
             point: form.point || 0,
         };
@@ -609,18 +494,6 @@ async function submitEdit() {
         Object.entries(fields).forEach(([key, value]) => {
             if (value !== null && value !== undefined) fd.append(key, value);
         });
-        
-
-        // Variants
-        if (form.variants.length > 0) {
-            form.variants.forEach((v, i) => {
-                fd.append(`variants[${i}][color]`, v.color || '');
-                fd.append(`variants[${i}][size]`, v.size || '');
-                fd.append(`variants[${i}][price]`, v.price || 0);
-                fd.append(`variants[${i}][discount]`, v.discount || 0);
-                fd.append(`variants[${i}][stock_quantity]`, v.stock_quantity || 0);
-            });
-        }
 
         // Images
         if (form.images.length > 0) {
@@ -672,7 +545,7 @@ async function handleDelete() {
             const res = await api.delete(`/products/delete/${form.id}`);
             successMsg.value = res.data?.message || "Product deleted successfully.";
             setTimeout(() => {
-                router.push('/products');
+                router.push('/admin/products');
             }, 1000);
         }catch(err) {
             if(err.response?.data?.errors) Object.assign(errors, err.response.data.errors)
@@ -699,16 +572,23 @@ async function handleDelete() {
 
 
 
-// --- THEME ---
-function applyTheme(dark){
-    isDark.value = dark
-    document.documentElement.classList.toggle("dark", dark)
-    localStorage.setItem("theme", dark ? "dark":"light")
+// dark and light mode
+const isDark = ref(false);
+function applyTheme(dark) {
+    isDark.value = dark;
+    document.documentElement.classList.toggle("dark", dark);
+    localStorage.setItem("theme", dark ? "dark" : "light");
 }
-function toggleTheme(){ applyTheme(!isDark.value) }
 
-// --- SEARCH ---
-function onSearch(q){ console.log("search:", q) }
+function toggleTheme() {
+    applyTheme(!isDark.value);
+}
+
+function toggleDarkMode() {
+    isDark.value = !isDark.value;
+    document.documentElement.classList.toggle("dark",isDark.value);
+    localStorage.setItem("theme",isDark.value ? "dark" : "light");
+}
 
 
 

@@ -21,6 +21,8 @@ const AdminProfile = () => import('../components/Dashboard/admin/admin-profile.v
 // product import
 const AdminProductList = () => import('../components/Dashboard/admin/product/product-list.vue');
 const AdminCreateProduct = () => import('../components/Dashboard/admin/product/create-product.vue');
+const AdminProductEdit = () => import('../components/Dashboard/admin/product/product-edit.vue');
+const AdminProductSetting = () => import('../components/Dashboard/admin/product/product-setting.vue');
 
 
 
@@ -49,13 +51,16 @@ const routes = [
 
     // Admin Route 
     { path: "/", component: AdminDashboard, meta: { title: "Dashboard - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
-    { path: "/admin/dashboard", component: AdminDashboard, meta: { title: "Admin Dashboard - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
-    { path: "/admin/profile", component: AdminProfile, meta: { title: "Profile - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
+    
+    { path: "/admin/dashboard", component: AdminDashboard, meta: { requiresAuth: true, roles: ['admin', 'super_admin'], title: "Admin Dashboard - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
+    { path: "/admin/profile", component: AdminProfile, meta: { requiresAuth: true, roles: ['admin', 'super_admin'], title: "Profile - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
     
 
     // Product routes
-    { path: "/admin/products", component: AdminProductList, meta: { title: "Products List - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
-    { path: "/admin/create-product", component: AdminCreateProduct, meta: { title: "Create Product - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
+    { path: "/admin/products", component: AdminProductList, meta: { requiresAuth: true, roles: ['admin', 'super_admin'], title: "Products List - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
+    { path: "/admin/create-product", component: AdminCreateProduct, meta: { requiresAuth: true, roles: ['admin', 'super_admin'], title: "Create Product - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
+    { path: "/admin/product/setting", component: AdminProductSetting, meta: { requiresAuth: true, roles: ['admin', 'super_admin'], title: "Product Settings - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" }},
+    { path: '/admin/product-edit/:slug', component: AdminProductEdit, meta: { requiresAuth: true, roles: ['admin', 'super_admin'], title: "Edit Product - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" } },
 ]
 
 

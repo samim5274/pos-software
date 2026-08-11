@@ -682,110 +682,16 @@ class ProductController extends Controller
                 'category:id,name',
                 'subcategory:id,name',
                 'brand:id,name',
-                'variants:id,product_id,color,size,price,stock_quantity,discount',
                 'images:id,product_id,image_path,is_primary'
             ])
-            ->withAvg('ratings', 'rating')
-            ->withCount('ratings')
             ->where('is_active', 1)
-            ->where('approval_status', 1)
             ->where('slug', $slug)->firstOrFail();
 
-            // Related Products
-            $limit = 15;
-            $excludedIds = [$product->id];
-
-            // 1. Same Subcategory (Random)
-            $categoryProducts = Product::with([
-                'category:id,name',
-                'subcategory:id,name',
-                'brand:id,name',
-                'variants:id,product_id,color,size,price,stock_quantity,discount',
-                'images:id,product_id,image_path,is_primary'
-            ])
-            ->withAvg('ratings', 'rating')
-            ->withCount('ratings')
-            ->whereNotIn('id', $excludedIds)
-            ->where('is_active', 1)
-            ->where('approval_status', 1)
-            ->where('subcategory_id', $product->subcategory_id)
-            ->inRandomOrder()
-            ->take($limit)
-            ->get();
-
-            $excludedIds = array_merge($excludedIds, $categoryProducts->pluck('id')->toArray());
-
-            // 2. Same Category (Random)
-            if ($categoryProducts->count() < $limit) {
-
-                $remaining = $limit - $categoryProducts->count();
-
-                $extraProducts = Product::with([
-                        'category:id,name',
-                        'subcategory:id,name',
-                        'brand:id,name',
-                        'variants:id,product_id,color,size,price,stock_quantity,discount',
-                        'images:id,product_id,image_path,is_primary'
-                    ])
-                    ->withAvg('ratings', 'rating')
-                    ->withCount('ratings')
-                    ->where('is_active', 1)
-                    ->where('approval_status', 1)
-                    ->whereNotIn('id', $excludedIds)
-                    ->where('category_id', $product->category_id)
-                    ->inRandomOrder()
-                    ->take($remaining)
-                    ->get();
-
-                $categoryProducts = $categoryProducts->concat($extraProducts);
-
-                $excludedIds = array_merge($excludedIds, $extraProducts->pluck('id')->toArray());
-            }
-
-            // 3. Other Category (Fill Remaining)
-            if ($categoryProducts->count() < $limit) {
-
-                $remaining = $limit - $categoryProducts->count();
-
-                $otherProducts = Product::with([
-                        'category:id,name',
-                        'subcategory:id,name',
-                        'brand:id,name',
-                        'variants:id,product_id,color,size,price,stock_quantity,discount',
-                        'images:id,product_id,image_path,is_primary'
-                    ])
-                    ->withAvg('ratings', 'rating')
-                    ->withCount('ratings')
-                    ->where('is_active', 1)
-                    ->where('approval_status', 1)
-                    ->whereNotIn('id', $excludedIds)
-                    ->orderByDesc('total_click')
-                    ->take($remaining)
-                    ->get();
-
-                $categoryProducts = $categoryProducts->concat($otherProducts);
-            }
-
-            // Transform images (VERY IMPORTANT for live server)
-            $product->images->transform(function ($image) {
-                $image->url = asset('storage/' . $image->image_path);
-                return $image;
-            });
-
-            $categoryProducts->each(function ($relatedProduct) {
-                $relatedProduct->images->transform(function ($image) {
-                    $image->url = asset('storage/' . $image->image_path);
-                    return $image;
-                });
-            });
-
-            $product->increment('total_click');
 
             return response()->json([
                 'success' => true,
                 'message' => 'Product fetched successfully.',
                 'data' => $product,
-                'category_products' => $categoryProducts
             ], 200);
         } catch (ModelNotFoundException $e) {
 
@@ -826,22 +732,11 @@ class ProductController extends Controller
             'summary' => 'nullable|string|max:1000',
             'description' => 'nullable|string',
 
-            'meta_title' => 'nullable|max:255',
-            'meta_keywords' => 'nullable|string',
-            'meta_description' => 'nullable|string|max:2500',
-
             'slug' => 'required|string|max:255|unique:products,slug,' . $id,
 
             'point' => 'nullable|integer|min:0',
 
             'images.*' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
-
-            'variants' => 'array',
-            'variants.*.color' => 'nullable|string|max:50',
-            'variants.*.size' => 'nullable|string|max:50',
-            'variants.*.price' => 'required|numeric|min:0',
-            'variants.*.discount' => 'nullable|numeric|min:0',
-            'variants.*.stock_quantity' => 'required|integer|min:0',
         ]);
 
         try {
@@ -865,14 +760,8 @@ class ProductController extends Controller
                     'summary' => $request->summary,
                     'description' => $request->description,
 
-                    'meta_title' => $request->meta_title,
-                    'meta_keywords' => $request->meta_keywords,
-                    'meta_description' => $request->meta_description,
-
                     'point' => $request->point,
 
-                    'is_featured' => $request->boolean('is_featured'),
-                    'is_on_sale' => $request->boolean('is_on_sale'),
                     'is_active' => $request->boolean('is_active'),
                 ]);
 
@@ -882,36 +771,20 @@ class ProductController extends Controller
                 if ($request->has('category')) $product->category_id = $request->category;
                 if ($request->has('subcategory')) $product->subcategory_id = $request->subcategory;
 
-                $product->is_featured = $request->boolean('is_featured', $product->is_featured);
-                $product->is_on_sale = $request->boolean('is_on_sale', $product->is_on_sale);
                 $product->is_active = $request->boolean('is_active', $product->is_active);
-
-                if ($request->has('variants')) {
-
-                    $product->variants()->delete();
-
-                    foreach ($request->variants ?? [] as $variant){
-                        $product->variants()->create([
-                            'color'=>$variant['color'],
-                            'size'=>$variant['size'],
-                            'price'=>$variant['price'],
-                            'discount'=>$variant['discount'],
-                            'stock_quantity'=>$variant['stock_quantity'],
-                        ]);
-
-                    }
-                }
 
                 if ($request->hasFile('images')) {
                     $this->updateProductImages($product, $request->file('images'));
                 }
+
+                // Forget public products cache
+                Cache::forget('public_products');
 
                 return response()->json([
                     'success'=>true,
                     'message'=>'Product updated successfully.',
                     'data'=>$product->fresh([
                         'images',
-                        'variants',
                         'brand',
                         'category',
                         'subcategory'
@@ -955,7 +828,7 @@ class ProductController extends Controller
         DB::beginTransaction();
 
         try {
-            $product = Product::with(['images', 'variants'])->findOrFail($id);
+            $product = Product::with(['images'])->findOrFail($id);
 
             // Delete images from storage + DB
             foreach ($product->images as $img) {
@@ -963,11 +836,6 @@ class ProductController extends Controller
                     Storage::disk('public')->delete($img->image_path);
                 }
                 $img->delete(); // DB
-            }
-
-            // Delete variants
-            foreach ($product->variants as $variant) {
-                $variant->delete();
             }
 
             // Delete product

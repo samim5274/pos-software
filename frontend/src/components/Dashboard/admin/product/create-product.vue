@@ -343,23 +343,23 @@ function resetErrorAndLoading() {
 
 // Initial state object for reset purpose
 const initialForm = {
-    name: 'sample product 501',
-    sku: 'sample-product-501',
+    name: '',
+    sku: '',
     category: '',
     subcategory: '',
     brand: '',
-    purchase_price:'450',
-    price: '560',
-    discount: '60',
-    stock_quantity: '15',
-    min_stock: '5',
+    purchase_price:'',
+    price: '',
+    discount: '',
+    stock_quantity: '',
+    min_stock: '',
     images: [],       // for uploaded files
 
-    summary: 'n/a',
-    description: 'n/a',
-    slug: 'sample-product-501',
+    summary: '',
+    description: '',
+    slug: '',
     is_active: true,
-    point: '10',
+    point: '',
 }
 
 // reactive form
