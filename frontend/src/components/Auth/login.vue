@@ -93,20 +93,20 @@
             </button>
 
             <!-- Divider -->
-            <div class="relative flex items-center gap-4 py-2">
+            <!-- <div class="relative flex items-center gap-4 py-2">
             <div class="h-px flex-1 bg-gray-200 dark:bg-gray-800"></div>
             <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Or connect with</span>
             <div class="h-px flex-1 bg-gray-200 dark:bg-gray-800"></div>
-            </div>
+            </div> -->
 
             <!-- Social Logins (Perfectly adapt to both dark/light backgrounds) -->
-            <div class="grid grid-cols-3 gap-3">
+            <!-- <div class="grid grid-cols-3 gap-3">
             <button v-for="social in ['google', 'github', 'facebook']" :key="social" type="button" @click="handleSocialLogin(social)"
                 class="h-11 rounded-xl bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 hover:border-[#16A34A] hover:bg-white dark:hover:bg-gray-800 transition-all flex items-center justify-center group"
             >
                 <i :class="`fa-brands fa-${social} text-gray-400 dark:text-gray-500 group-hover:text-[#1F2937] dark:group-hover:text-white transition-colors`"></i>
             </button>
-            </div>
+            </div> -->
 
             <!-- Register Link -->
             <p class="text-center text-gray-400 dark:text-gray-500 text-sm mt-6">

@@ -92,4 +92,14 @@ class User extends Authenticatable
             }
         });
     }
+
+    public function order(): HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function payment(): HasMany
+    {
+        return $this->hasMany(OrderPayment::class);
+    }
 }

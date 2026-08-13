@@ -2,340 +2,188 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Order extends Model
 {
     use HasFactory, SoftDeletes;
 
-    public const PAYMENT_METHOD_COD='cod';
-    public const PAYMENT_METHOD_ONLINE='advance';
+    public const PAYMENT_METHOD_CASH = 'cash';
+    public const PAYMENT_METHOD_CARD = 'card';
+    public const PAYMENT_METHOD_BANK_TRANSFER = 'bank_transfer';
+    public const PAYMENT_METHOD_BKASH = 'bkash';
+    public const PAYMENT_METHOD_NAGAD = 'nagad';
+    public const PAYMENT_METHOD_ROCKET = 'rocket';
+    public const PAYMENT_METHOD_WALLET = 'wallet';
+
+    public const PAYMENT_METHODS = [
+        self::PAYMENT_METHOD_CASH,
+        self::PAYMENT_METHOD_CARD,
+        self::PAYMENT_METHOD_BANK_TRANSFER,
+        self::PAYMENT_METHOD_BKASH,
+        self::PAYMENT_METHOD_NAGAD,
+        self::PAYMENT_METHOD_ROCKET,
+        self::PAYMENT_METHOD_WALLET,
+    ];
 
     public const CURRENCY_BDT = 'BDT';
 
-    public const PAYMENT_PENDING='Pending';
-    public const PAYMENT_PARTIAL='Partial';
-    public const PAYMENT_PAID='Paid';
-    public const PAYMENT_FAILED='Failed';
-    public const PAYMENT_REFUNDED='Refunded';
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_COMPLETED = 'completed';
+    public const STATUS_RETURNED = 'returned';
 
-    public const STATUS_PENDING='Pending';
-    public const STATUS_CONFIRMED='Confirmed';
-    public const STATUS_PROCESSING='Processing';
-    public const STATUS_PICKED='Picked';
-    public const STATUS_SHIPPED='Shipped';
-    public const STATUS_OUT_FOR_DELIVERY='Out for Delivery';
-    public const STATUS_DELIVERED='Delivered';
-    public const STATUS_CANCELLED='Cancelled';
-    public const STATUS_FAILED='Failed';
-    public const STATUS_RETURNED='Returned';
+    public const ORDER_STATUSES = [
+        self::STATUS_PENDING,
+        self::STATUS_COMPLETED,
+        self::STATUS_RETURNED,
+    ];
 
     protected $fillable = [
-        /*
-        |--------------------------------------------------------------------------
-        | Identification
-        |--------------------------------------------------------------------------
-        */
         'reg',
-        'date',
+        'order_number',
+        'slug',
+        'order_date',
 
-        /*
-        |--------------------------------------------------------------------------
-        | Relationship
-        |--------------------------------------------------------------------------
-        */
         'user_id',
-        'coupon_id',
-        'coupon_code',
 
-        /*
-        |--------------------------------------------------------------------------
-        | Financial
-        |--------------------------------------------------------------------------
-        */
-        'amount',
-        'coupon_discount',
-        'shipping_charge',
-        'tax',
+        'customer_id',
+        'customer_name',
+        'customer_phone',
+
+        'subtotal',
         'discount',
+        'vat',
         'payable_amount',
-        'paid_amount',
-        'due_amount',
+
+        'payment_method',
         'currency',
+        'paid_at',
+
         'point',
 
-        /*
-        |--------------------------------------------------------------------------
-        | Payment
-        |--------------------------------------------------------------------------
-        */
-        'payment_method',
-        'payment_status',
-        'paid_at',
-        'submitted_at',
-
-        /*
-        |--------------------------------------------------------------------------
-        | Order Status
-        |--------------------------------------------------------------------------
-        */
         'status',
-        'referral_bonus_paid',
 
-        /*
-        |--------------------------------------------------------------------------
-        | Shipping
-        |--------------------------------------------------------------------------
-        */
-        'contact_name',
-        'contact_number',
-        'contact_email',
-        'shipping_address',
+        'completed_at',
+        'returned_at',
 
-        'division_id',
-        'district_id',
-        'upazila_id',
-        'police_station_id',
-        'postal_code',
+        'returned_by',
 
         'remarks',
 
-        /*
-        |--------------------------------------------------------------------------
-        | Timeline
-        |--------------------------------------------------------------------------
-        */
-        'processing_at',
-        'picked_at',
-        'confirmed_at',
-        'shipped_at',
-        'delivered_at',
-        'cancelled_at',
         'ip_address',
         'user_agent',
     ];
 
     protected $casts = [
-        'date' => 'date',
 
-        'amount' => 'decimal:2',
-        'coupon_discount' => 'decimal:2',
-        'shipping_charge' => 'decimal:2',
-        'tax' => 'decimal:2',
+        'order_date' => 'date',
+
+        'subtotal' => 'decimal:2',
         'discount' => 'decimal:2',
+        'vat' => 'decimal:2',
         'payable_amount' => 'decimal:2',
 
         'point' => 'integer',
 
-        'referral_bonus_paid' => 'boolean',
-
-        'processing_at' => 'datetime',
-        'picked_at' => 'datetime',
         'paid_at' => 'datetime',
-        'confirmed_at' => 'datetime',
-        'shipped_at' => 'datetime',
-        'delivered_at' => 'datetime',
-        'cancelled_at' => 'datetime',
+        'completed_at' => 'datetime',
+        'returned_at' => 'datetime',
     ];
 
     protected $attributes = [
-        'currency'=>'BDT',
-        'payment_method'=>self::PAYMENT_METHOD_COD,
-        'payment_status'=>self::PAYMENT_PENDING,
-        'status'=>self::STATUS_PENDING,
+        'currency' => self::CURRENCY_BDT,
+        'payment_method' => self::PAYMENT_METHOD_CASH,
+        'status' => self::STATUS_PENDING,
+        'subtotal' => 0,
+        'discount' => 0,
+        'vat' => 0,
+        'payable_amount' => 0,
+        'point' => 0,
     ];
 
-    public const PAYMENT_METHODS = [
-        self::PAYMENT_METHOD_COD,
-        self::PAYMENT_METHOD_ONLINE,
-    ];
-
-    public const PAYMENT_STATUSES = [
-        self::PAYMENT_PENDING,
-        self::PAYMENT_PARTIAL,
-        self::PAYMENT_PAID,
-        self::PAYMENT_FAILED,
-        self::PAYMENT_REFUNDED,
-    ];
-
-    public const ORDER_STATUSES = [
-        self::STATUS_PENDING,
-        self::STATUS_CONFIRMED,
-        self::STATUS_PROCESSING,
-        self::STATUS_PICKED,
-        self::STATUS_SHIPPED,
-        self::STATUS_OUT_FOR_DELIVERY,
-        self::STATUS_DELIVERED,
-        self::STATUS_CANCELLED,
-        self::STATUS_FAILED,
-        self::STATUS_RETURNED,
-    ];
-
-    public function recalculatePaymentTotals(): void
-    {
-        $paid = $this->payments()
-            ->where('status', OrderPayment::STATUS_SUCCESS)
-            ->get()
-            ->sum(function (OrderPayment $payment) {
-                return $payment->isRefund()
-                    ? -1 * (float) $payment->amount
-                    : (float) $payment->amount;
-            });
-
-        $paid = max($paid, 0);
-        $due  = max((float) $this->payable_amount - $paid, 0);
-
-        $paymentStatus = match (true) {
-            $paid <= 0 => self::PAYMENT_PENDING,
-            $due <= 0  => self::PAYMENT_PAID,
-            default    => self::PAYMENT_PARTIAL,
-        };
-
-        $this->forceFill([
-            'paid_amount'    => $paid,
-            'due_amount'     => $due,
-            'payment_status' => $paymentStatus,
-        ])->saveQuietly();
-    }
-
-    // Auto slug generate
     protected static function booted(): void
     {
         static::creating(function (Order $order) {
+
+            if (blank($order->reg)) {
+                $order->reg = static::generateReg();
+            }
+
+            if (blank($order->order_number)) {
+                $order->order_number = static::generateOrderNumber();
+            }
+
             if (blank($order->slug)) {
                 $order->slug = static::generateSlug($order);
+            }
+
+            if (blank($order->order_date)) {
+                $order->order_date = now()->toDateString();
             }
         });
     }
 
-    private static function generateSlug(self $order): string
+
+    protected static function generateReg(): string
+    {
+        do {
+            $reg = 'ORD-' . strtoupper(Str::random(12));
+        } while (static::where('reg', $reg)->exists());
+
+        return $reg;
+    }
+
+
+    protected static function generateOrderNumber(): string
+    {
+        do {
+            $number = 'POS-' . now()->format('Ymd') . '-' . strtoupper(Str::random(6));
+        } while (static::where('order_number', $number)->exists());
+
+        return $number;
+    }
+
+
+    protected static function generateSlug(Order $order): string
     {
         do {
             $slug = Str::slug(
-                'order-' . $order->reg . '-' . Str::random(8)
+                'order-' . ($order->order_number ?: Str::random(10))
             );
+
         } while (static::where('slug', $slug)->exists());
 
         return $slug;
     }
 
-    // Scope Status
-    public function scopePending(Builder $query): Builder
-    {
-        return $query->where('status', self::STATUS_PENDING);
-    }
 
-    public function scopePaid(Builder $query): Builder
-    {
-        return $query->where('payment_status', self::PAYMENT_PAID);
-    }
+    /*
+    |--------------------------------------------------------------------------
+    | Relationships
+    |--------------------------------------------------------------------------
+    */
 
-    public function scopeDelivered(Builder $query): Builder
-    {
-        return $query->where('status', self::STATUS_DELIVERED);
-    }
-
-    public function scopeConfirmed(Builder $query): Builder
-    {
-        return $query->where('status', self::STATUS_CONFIRMED);
-    }
-
-    public function scopeProcessing(Builder $query): Builder
-    {
-        return $query->where('status', self::STATUS_PROCESSING);
-    }
-
-    public function scopeCancelled(Builder $query): Builder
-    {
-        return $query->where('status', self::STATUS_CANCELLED);
-    }
-
-    // Helper Methods
-    public function isPaid(): bool
-    {
-        return $this->payment_status===self::PAYMENT_PAID;
-    }
-
-    public function isPending(): bool
-    {
-        return $this->status===self::STATUS_PENDING;
-    }
-
-    public function isDelivered(): bool
-    {
-        return $this->status===self::STATUS_DELIVERED;
-    }
-
-    public function isCancelled(): bool
-    {
-        return $this->status === self::STATUS_CANCELLED;
-    }
-
-    public function isFailed(): bool
-    {
-        return $this->status === self::STATUS_FAILED;
-    }
-
-    public function isRefunded(): bool
-    {
-        return $this->payment_status === self::PAYMENT_REFUNDED;
-    }
-
-    public function isCod(): bool
-    {
-        return $this->payment_method === self::PAYMENT_METHOD_COD;
-    }
-
-    public function isOnline(): bool
-    {
-        return $this->payment_method === self::PAYMENT_METHOD_ONLINE;
-    }
-
-    public function getFormattedAmountAttribute(): string
-    {
-        return number_format($this->payable_amount, 2);
-    }
-
-    // Relation
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function coupon(): BelongsTo
+
+    public function customer(): BelongsTo
     {
-        return $this->belongsTo(Coupon::class);
+        return $this->belongsTo(Customer::class);
     }
 
-    public function deliveryCharges(): HasMany
-    {
-        return $this->hasMany(DeliveryChargePayment::class);
-    }
 
-    public function division(): BelongsTo
+    public function returnedBy(): BelongsTo
     {
-        return $this->belongsTo(Division::class);
-    }
-
-    public function district(): BelongsTo
-    {
-        return $this->belongsTo(District::class);
-    }
-
-    public function upazila(): BelongsTo
-    {
-        return $this->belongsTo(Upazila::class);
-    }
-
-    public function policeStation(): BelongsTo
-    {
-        return $this->belongsTo(PoliceStation::class);
+        return $this->belongsTo(User::class, 'returned_by');
     }
 
     public function payments(): HasMany
@@ -343,13 +191,4 @@ class Order extends Model
         return $this->hasMany(OrderPayment::class);
     }
 
-    public function payment()
-    {
-        return $this->hasOne(OrderPayment::class);
-    }
-
-    public function items(): HasMany
-    {
-        return $this->hasMany(Cart::class, 'reg', 'reg');
-    }
 }

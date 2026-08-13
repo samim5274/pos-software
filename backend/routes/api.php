@@ -261,9 +261,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [AdminCartController::class, 'index']);
         Route::get('/{reg}', [AdminCartController::class, 'getCartItem']);
         Route::post('/add-to-cart', [AdminCartController::class, 'adminAddToCart']);
+        Route::post('/add-to-cart-search', [AdminCartController::class, 'adminAddToCartSearch']);
         Route::post('/qty-update/{reg}/{product_id}', [AdminCartController::class, 'updateQty']);
         Route::post('/remove-to-cart/{cart_id}/{reg}/{product_id}', [AdminCartController::class, 'removeToCart']);
-        Route::post('confirm/order/{reg}', [AdminCartController::class, 'confirmOrder']);
+        Route::post('/checkout/{reg}', [AdminCartController::class, 'checkOut']);
     });
 
     // Route::prefix('cart')->group(function () {

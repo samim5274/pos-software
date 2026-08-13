@@ -255,19 +255,19 @@
             </div>
 
             <!-- Divider -->
-            <div class="relative flex items-center gap-4 py-2">
+            <!-- <div class="relative flex items-center gap-4 py-2">
                 <div class="h-px flex-1 bg-gray-200 dark:bg-gray-800"></div>
                 <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Or connect with</span>
                 <div class="h-px flex-1 bg-gray-200 dark:bg-gray-800"></div>
-            </div>
+            </div> -->
 
             <!-- Social Logins (Perfectly adapt to both dark/light backgrounds) -->
-            <div class="grid grid-cols-3 gap-3">
+            <!-- <div class="grid grid-cols-3 gap-3">
                 <button v-for="social in ['google', 'github', 'facebook']" :key="social" type="button" @click="handleSocialLogin(social)"
                     class="h-11 rounded-xl bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 hover:border-[#16A34A] hover:bg-white dark:hover:bg-gray-800 transition-all flex items-center justify-center group">
                     <i :class="`fa-brands fa-${social} text-gray-400 dark:text-gray-500 group-hover:text-[#1F2937] dark:group-hover:text-white transition-colors`"></i>
                 </button>
-            </div>
+            </div> -->
 
             <footer class="mt-8 pt-4 border-t border-gray-100 dark:border-white/5 flex justify-between text-[11px] text-gray-400 dark:text-gray-500">
                 <router-link to="/privacy-policy" class="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Privacy Policy</router-link>

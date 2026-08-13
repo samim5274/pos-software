@@ -46,6 +46,7 @@ class ProductSeeder extends Seeder
             $discount = rand(0, (int)($price * 0.5));
 
             $discountPrice = $price - $discount;
+            $point  = round($price / 10, 2);
 
             $product = Product::create([
                 'name'             => $name,
@@ -60,6 +61,7 @@ class ProductSeeder extends Seeder
                 'stock_quantity'   => rand(5, 50),
                 'min_stock'        => 5,
                 'is_active'        => 1,
+                'point'            => $point,
             ]);
 
         }

@@ -23,10 +23,12 @@ return new class extends Migration
 
             // Location
             $table->foreignId('division_id')
+                ->nullable()
                 ->constrained()
                 ->cascadeOnDelete();
 
             $table->foreignId('district_id')
+                ->nullable()
                 ->constrained()
                 ->cascadeOnDelete();
 
@@ -41,12 +43,12 @@ return new class extends Migration
                 ->nullOnDelete();
 
             // Address
-            $table->text('address');
+            $table->text('address')->nullable();
 
             $table->string('postal_code', 20)->nullable();
 
             // Default Address
-            $table->boolean('is_default')->default(false);
+            $table->boolean('is_default')->default(true);
 
             $table->timestamps();
         });

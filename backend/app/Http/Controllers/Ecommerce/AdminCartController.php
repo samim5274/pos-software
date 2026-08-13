@@ -18,25 +18,17 @@ use App\Models\User;
 use App\Models\Product;
 use App\Models\Stock;
 use App\Models\Cart;
+use App\Models\Customer;
 use App\Models\Order;
 use App\Services\RegGenerator;
 use App\Http\Requests\ConfirmOrderRequest;
 use App\Http\Requests\CustomerOrderRequest;
+use App\Http\Requests\CheckOutRequest;
 use App\Http\Requests\ConfirmPaymentRequest;
-use App\Models\PointTransaction;
 use App\Services\PointService;
 use App\Mail\OrderMail;
-use App\Models\DeliveryChargePayment;
-use App\Models\Division;
-use App\Models\District;
-use App\Models\Upazila;
-use App\Models\PoliceStation;
-use App\Models\ShippingZone;
-use App\Models\CustomerAddress;
-use App\Models\Transaction;
 use App\Models\OrderPayment;
-use App\Models\Coupon;
-use App\Models\CouponUsage;
+
 
 class AdminCartController extends Controller
 {
@@ -101,6 +93,138 @@ class AdminCartController extends Controller
                 if ((int) $product->stock_quantity <= 0) {
                     throw ValidationException::withMessages([
                         'product_id' => 'This product is out of stock.',
+                    ]);
+                }
+
+                $reg = RegGenerator::generateOrderReg($user->id);
+                if (!$reg) {
+                    throw ValidationException::withMessages([
+                        'reg' => 'Failed to generate cart session.',
+                    ]);
+                }
+
+                $basePrice = (float) $product->price;
+                $discountAmount = (float) ($product->discount ?? 0);
+                $finalPrice = max(0, $basePrice - $discountAmount);
+
+                // ======================
+                // Cart item find
+                // ======================
+                $query = Cart::where('reg', $reg)->where('product_id', $product->id);
+
+                $cartItem = $query->first();
+
+                // ======================
+                // Quantity logic
+                // ======================
+                $requestedQty = 1;
+                $currentQty = $cartItem->quantity ?? 0;
+                $newQty = $currentQty + $requestedQty;
+
+                // ======================
+                // Save cart
+                // ======================
+                if ($cartItem) {
+                    $cartItem->update([
+                        'quantity'          => $newQty,
+                        'price'             => $basePrice,
+                        'discount'          => $discountAmount,
+                        'total_amount'    => $finalPrice,
+                    ]);
+                } else {
+                    $cartItem = Cart::create([
+                        'reg'               => $reg,
+                        'user_id'           => $user->id,
+                        'product_id'        => $product->id,
+                        'quantity'          => $requestedQty,
+                        'price'             => $basePrice,
+                        'discount'          => $discountAmount,
+                        'total_amount'    => $finalPrice,
+                        'point'             => $product->point,
+                    ]);
+                }
+
+                // ======================
+                // RESPONSE (OUTSIDE EXCEPTION FLOW STYLE)
+                // ======================
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Product added to cart successfully.',
+                    'data' => [
+                        'cart_id'    => $cartItem->id,
+                        'product_id' => $product->id,
+                        'quantity'   => $cartItem->quantity,
+                        'price'      => (float) $finalPrice,
+                        'total'      => (float) ($finalPrice * $cartItem->quantity)
+                    ]
+                ], 201);
+
+            });
+        } catch (\Exception $e) {
+            Log::error('POS Add To Cart Failed', [
+                'user_id'    => $user->id,
+                'product_id' => $data['product_id'] ?? null,
+                'quantity'   => $requestedQty,
+                'message'    => $e->getMessage(),
+                'file'       => $e->getFile(),
+                'line'       => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to add product to cart. Please try again.',
+                // debug only
+                // 'message' => $e->getMessage(),
+                // 'file'    => $e->getFile(),
+                // 'line'    => $e->getLine(),
+            ], 500);
+        }
+    }
+
+    public function adminAddToCartSearch(Request $request)
+    {
+        $data = $request->validate([
+            'product'    => ['required', 'string'],
+            'quantity'      => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 401);
+        }
+
+        $requestedQty = (int) ($data['quantity'] ?? 1);
+
+        try{
+            return DB::transaction(function () use ($data, $user, $requestedQty) {
+
+                $search = trim($data['product']);
+
+               $product = Product::lockForUpdate()
+                    ->where(function ($query) use ($search) {
+                        $query->where('id', $search)
+                            ->orWhere('sku', $search)
+                            ->orWhere('slug', $search)
+                            ->orWhere('name', 'LIKE', "%{$search}%");
+                    })
+                    ->first();
+                if (!$product) {
+                    throw ValidationException::withMessages([
+                        'product' => 'Product not found.',
+                    ]);
+                }
+                if (!$product->is_active) {
+                    throw ValidationException::withMessages([
+                        'product' => 'This product is currently inactive.',
+                    ]);
+                }
+                if ((int) $product->stock_quantity <= 0) {
+                    throw ValidationException::withMessages([
+                        'product' => 'This product is out of stock.',
                     ]);
                 }
 
@@ -307,7 +431,7 @@ class AdminCartController extends Controller
         }
     }
 
-    public function confirmOrder(CustomerOrderRequest $request, $reg)
+    public function checkOut(CheckOutRequest $request, string $reg)
     {
         $validated = $request->validated();
 
@@ -320,314 +444,163 @@ class AdminCartController extends Controller
         }
 
         try {
+            $result = DB::transaction(function () use ($validated, $user, $reg, $request) {
 
-            $response = DB::transaction(function () use ($validated, $user, $reg, $request) {
-
-                // ----------------------------------------------------------------
-                // STEP 1: Duplicate order guard (same reg + user shouldn't create twice)
-                // ----------------------------------------------------------------
-                if (Order::where([
-                    'reg'     => $reg,
-                    'user_id' => $user->id,
-                ])->lockForUpdate()->exists()) {
-
-                    throw ValidationException::withMessages([
-                        'order' => ['Order already created.'],
-                    ]);
-                }
-
-                // ----------------------------------------------------------------
-                // STEP 2: Cart Section — lock cart rows to prevent race condition
-                // ----------------------------------------------------------------
-                $cartItems = Cart::where('reg', $reg)
+                $cartItems = Cart::query()
+                    ->where('reg', $reg)
                     ->where('user_id', $user->id)
                     ->lockForUpdate()
                     ->get();
 
                 if ($cartItems->isEmpty()) {
                     throw ValidationException::withMessages([
-                        'cart' => ['Cart is empty.'],
+                        'cart' => ['Cart is empty or checkout has already been completed.'],
                     ]);
                 }
 
-                // ----------------------------------------------------------------
-                // STEP 3: Shipping Address — FIX: no CustomerAddress lookup.
-                // ----------------------------------------------------------------
-                $recipientName   = $validated['recipient_name'];
-                $recipientPhone  = $validated['phone'];
-                $divisionId      = $validated['division_id'];
-                $districtId      = $validated['district_id'];
-                $upazilaId       = $validated['upazila_id'];
-                $policeStationId = $validated['police_station_id'] ?? null;
-                $postalCode      = $validated['postal_code'] ?? null;
-                $shippingAddress = $validated['address'];
+                $customerPhone = $validated['phone_number'] ?? null;
+                $customerName  = isset($validated['customer_name']) ? trim($validated['customer_name']) : null;
 
-                // ----------------------------------------------------------------
-                // STEP 4: Shipping Charge
-                // ----------------------------------------------------------------
-                $shippingZone = ShippingZone::query()
-                    ->where('district_id', $districtId)
-                    ->where('is_active', true)
-                    ->first();
+                $customer = null;
 
-                if (!$shippingZone) {
+                if ($customerPhone) {
+                    $customer = Customer::firstOrCreate(
+                        ['phone' => $customerPhone],
+                        ['customer_name' => $customerName ?? 'Walk-in Customer']
+                    );
+
+                    if ($customerName && blank($customer->customer_name)) {
+                        $customer->update(['customer_name' => $customerName]);
+                    }
+                }
+
+                $subtotal = round($cartItems->sum(fn ($item) => (float) $item->price * (int) $item->quantity), 2);
+
+                $cartDiscount = round($cartItems->sum(fn ($item) => (float) ($item->discount ?? 0) * (int) $item->quantity), 2);
+
+                $manualDiscount = round(max(0, (float) ($validated['discount'] ?? 0)), 2);
+
+                $discount = round(min($subtotal, $cartDiscount + $manualDiscount), 2);
+
+                // ---- Percentage-based VAT ----
+                $vatPercentage = round(min(100, max(0, (float) ($validated['vat'] ?? 0))), 2);
+
+                $taxableAmount = round(max(0, $subtotal - $discount), 2);
+
+                $vat = round(($taxableAmount * $vatPercentage) / 100, 2);
+                // -------------------------------
+
+                $payableAmount = round(max(0, $taxableAmount + $vat), 2);
+
+                $receivedAmount = round(max(0, (float) ($validated['received_amount'] ?? 0)), 2);
+                $changeAmount   = round(max(0, $receivedAmount - $payableAmount), 2);
+                $paidAmount     = round(min($receivedAmount, $payableAmount), 2);
+
+                if ($payableAmount > 0 && $paidAmount <= 0) {
                     throw ValidationException::withMessages([
-                        'district_id' => ['Delivery is not available in this area.'],
+                        'received_amount' => ['Payment amount must be greater than zero.'],
                     ]);
                 }
 
-                $deliveryCharge = round($shippingZone->delivery_charge, 2);
-                $codCharge = $validated['payment_method'] === 'cod'
-                    ? round($shippingZone->cod_charge, 2)
-                    : 0;
-
-                // ----------------------------------------------------------------
-                // STEP 5: Cart totals (server-side calculation — client কে trust করা হয় না)
-                // ----------------------------------------------------------------
-                $amount   = round($cartItems->sum(fn ($item) => $item->price * $item->quantity), 2);
-                $point    = (int) $cartItems->sum(fn ($item) => $item->point * $item->quantity);
-                $discount = round($cartItems->sum(fn ($item) => $item->discount * $item->quantity), 2);
-
-                $netAmount = round(max(0, $amount - $discount), 2);
-
-                // ----------------------------------------------------------------
-                // STEP 6: Coupon Section
-                // ----------------------------------------------------------------
-                $coupon = null;
-                $couponDiscount = 0;
-
-                if (!empty($validated['coupon'])) {
-
-                    $coupon = Coupon::lockForUpdate()
-                        ->where('code', $validated['coupon'])
-                        ->where('is_active', true)
-                        ->first();
-
-                    if (!$coupon) {
+                $isPartiallyPaid = $paidAmount < $payableAmount;
+                // --------------------------------------------------------------
+                if ($isPartiallyPaid) {
+                    if (!$customerPhone) {
                         throw ValidationException::withMessages([
-                            'coupon' => ['Invalid coupon code.'],
+                            'phone_number' => ['Customer phone number is required for partial payments.'],
                         ]);
                     }
 
-                    if ($coupon->start_date && now()->lt($coupon->start_date)) {
+                    if (!$customerName) {
                         throw ValidationException::withMessages([
-                            'coupon' => ['Coupon is not active yet.'],
+                            'customer_name' => ['Customer name is required for partial payments.'],
                         ]);
                     }
-
-                    if ($coupon->end_date && now()->gt($coupon->end_date)) {
-                        throw ValidationException::withMessages([
-                            'coupon' => ['Coupon has expired.'],
-                        ]);
-                    }
-
-                    if (
-                        !is_null($coupon->usage_limit) &&
-                        $coupon->used_count >= $coupon->usage_limit
-                    ) {
-                        throw ValidationException::withMessages([
-                            'coupon' => ['Coupon usage limit exceeded.'],
-                        ]);
-                    }
-
-                    if (
-                        CouponUsage::where('coupon_id', $coupon->id)
-                            ->where('user_id', $user->id)
-                            ->exists()
-                    ) {
-                        throw ValidationException::withMessages([
-                            'coupon' => ['You have already used this coupon.'],
-                        ]);
-                    }
-
-                    if (!is_null($coupon->minimum_amount) && $netAmount < $coupon->minimum_amount) {
-                        throw ValidationException::withMessages([
-                            'coupon' => ['Minimum order amount is ' . $coupon->minimum_amount],
-                        ]);
-                    }
-
-                    if ($coupon->discount_type === 'percent') {
-                        $couponDiscount = ($netAmount * $coupon->discount) / 100;
-
-                        if (!empty($coupon->maximum_discount) && $couponDiscount > $coupon->maximum_discount) {
-                            $couponDiscount = $coupon->maximum_discount;
-                        }
-                    } else {
-                        $couponDiscount = $coupon->discount;
-                    }
-
-                    $couponDiscount = round(min($couponDiscount, $netAmount), 2);
                 }
+                // --------------------------------------------------------------
 
-                $totalDiscount = round($discount + $couponDiscount, 2);
-                $payableAmount = round(max(0, ($amount - $totalDiscount) + $deliveryCharge + $codCharge), 2);
+                $paymentMethod = $validated['payment_method'] ?? OrderPayment::METHOD_CASH;
 
-                // ----------------------------------------------------------------
-                // STEP 7: Create Order
-                // ----------------------------------------------------------------
-                $order = Order::create([
-                    'reg'   => $reg,
-                    'slug'  => Str::slug($reg . '-' . now()->format('YmdHis')), // unique slug generate
-                    'date'  => now()->toDateString(),
-                    'user_id' => $user->id,
-
-                    'coupon_id'       => $coupon?->id,
-                    'coupon_code'     => $coupon?->code,
-
-                    'amount'          => $amount,
-                    'coupon_discount' => $couponDiscount,
-                    'shipping_charge' => $deliveryCharge,
-                    'discount'        => $totalDiscount,
-                    'total_amount'  => $payableAmount,
-                    'paid_amount'     => 0,
-                    'due_amount'      => $payableAmount,
-                    'currency'        => Order::CURRENCY_BDT,
-                    'point'           => $point,
-
-                    'payment_method'  => $validated['payment_method'],
-                    'payment_status'  => Order::PAYMENT_PENDING,
-                    'paid_at'         => null,
-                    'submitted_at'    => $validated['payment_method'] === 'advance' ? now() : null,
-
-                    'status' => Order::STATUS_PENDING,
-
-                    'contact_name'   => $recipientName,
-                    'contact_number' => $recipientPhone,
-                    'contact_email'  => $user->email,
-
-                    'division_id'       => $divisionId,
-                    'district_id'       => $districtId,
-                    'upazila_id'        => $upazilaId,
-                    'police_station_id' => $policeStationId,
-                    'postal_code'       => $postalCode,
-
-                    'shipping_address' => $shippingAddress,
-                    'remarks'          => $validated['remarks'] ?? null,
-
-                    'ip_address' => $request->ip(),
-                    'user_agent' => $request->userAgent(),
-                ]);
-
-                // ----------------------------------------------------------------
-                // STEP 8: Order Payment (Product Advance Payment)
-                // ----------------------------------------------------------------
-                if ($validated['payment_method'] === 'advance') {
-
-                    OrderPayment::create([
-                        'order_id' => $order->id,
-                        'user_id'  => $user->id,
-
-                        'payment_method' => $validated['trans_payment_method'] === 'mobile'
-                            ? OrderPayment::METHOD_MOBILE_BANKING
-                            : OrderPayment::METHOD_BANK_TRANSFER,
-
-                        'provider'     => OrderPayment::PROVIDER_MANUAL,
-                        'channel'      => OrderPayment::CHANNEL_OFFLINE,
-                        'payment_type' => OrderPayment::TYPE_PAYMENT,
-
-                        'transaction_id'       => $validated['transaction_id'] ?? null,
-                        'bank_name'            => $validated['bank_name'] ?? null,
-                        'account_number'       => $validated['account_number'] ?? null,
-                        'account_holder_name'  => $validated['account_holder_name'] ?? null,
-                        'sender_mobile'        => $validated['sender_mobile'] ?? null,
-                        'sender_name'          => $validated['sender_name'] ?? null,
-
-                        'amount'      => $order->total_amount,
-                        'gateway_fee' => 0,
-                        'net_amount'  => $order->total_amount,
-                        'currency'    => OrderPayment::CURRENCY_BDT,
-
-                        'status'  => OrderPayment::STATUS_PENDING,
-                        'paid_at' => null,
-
-                        'ip_address' => $request->ip(),
-                        'user_agent' => $request->userAgent(),
-                        'receipt_no' => null,
-
-                        'remarks' => 'Advance payment submitted. Waiting for admin verification.',
+                if (!in_array($paymentMethod, OrderPayment::PAYMENT_METHODS, true)) {
+                    throw ValidationException::withMessages([
+                        'payment_method' => ['Invalid payment method.'],
                     ]);
                 }
 
-                // ----------------------------------------------------------------
-                // STEP 9: Coupon Usage Log
-                // ----------------------------------------------------------------
-                if ($coupon) {
-                    CouponUsage::create([
-                        'coupon_id'       => $coupon->id,
-                        'user_id'         => $user->id,
-                        'order_id'        => $order->id,
-                        'discount_amount' => $couponDiscount,
-                        'order_amount'    => $amount,
-                        'coupon_code'     => $coupon->code,
-                    ]);
+                $point = (int) $cartItems->sum(fn ($item) => (int) ($item->point ?? 0) * (int) $item->quantity);
 
-                    $coupon->increment('used_count');
-                }
+                $orderStatus = Order::STATUS_COMPLETED;
 
-                // ----------------------------------------------------------------
-                // STEP 10: Delivery Charge Payment (checkbox controlled)
-                // ----------------------------------------------------------------
-                $isDeliveryChargePayment = filter_var(
-                    $validated['is_delivery_charge_payment'] ?? false,
-                    FILTER_VALIDATE_BOOLEAN
+                do {
+                    $slug = Str::slug(
+                        'order-' . $reg . '-' . now()->format('YmdHis') . '-' . Str::lower(Str::random(6))
+                    );
+                } while (Order::where('slug', $slug)->exists());
+
+                $orderNumber = 'ORD-' . now()->format('Ymd') . '-' . str_pad(
+                    (string) (Order::whereDate('created_at', now()->toDateString())->count() + 1), 4, '0', STR_PAD_LEFT
                 );
 
-                if ($isDeliveryChargePayment) {
+                $order = Order::create([
+                    'reg'            => $reg,
+                    'order_number'   => $orderNumber,
+                    'slug'           => $slug,
+                    'order_date'     => now()->toDateString(),
+                    'user_id'        => $user->id,
+                    'customer_id'    => $customer?->id,
+                    'customer_name'  => $customerName,
+                    'customer_phone' => $customerPhone,
+                    'subtotal'       => $subtotal,
+                    'discount'       => $discount,
+                    'vat_percentage' => $vatPercentage,
+                    'vat'            => $vat,
+                    'due_amount'     => round(max(0, $payableAmount - $paidAmount), 2),
+                    'payable_amount' => $payableAmount,
+                    'payment_method' => $paymentMethod,
+                    'currency'       => Order::CURRENCY_BDT,
+                    'point'          => $point,
+                    'status'         => $orderStatus,
+                    'completed_at'   => $orderStatus === Order::STATUS_COMPLETED ? now() : null,
+                    'remarks'        => $validated['remarks'] ?? "Order created by user: {$user->name}",
+                    'ip_address'     => $request->ip(),
+                    'user_agent'     => $request->userAgent(),
+                ]);
 
-                    $deliveryMethod = $validated['delivery_trans_payment_method']; // 'mobile' | 'bank'
+                $payment = null;
 
-                    DeliveryChargePayment::create([
-                        'order_id' => $order->id,
-
-                        'payment_date'   => now(),
-                        'payment_method' => $deliveryMethod, // migration enum: bank | mobile | sslcommerz | cash
-
-                        'amount'   => $deliveryCharge,
-                        'currency' => 'BDT',
-
-                        // bank_name column এ mobile banking provider (Bkash/Nagad/Rocket)
-                        'bank_name' => $validated['delivery_bank_name'] ?? null,
-
-                        'branch_name' => null, // frontend এ এই field নেই
-
-                        // Method
-                        'account_number' => $deliveryMethod === 'bank'
-                            ? ($validated['delivery_account_number'] ?? null)
-                            : null,
-
-                        'mobile_number' => $deliveryMethod === 'mobile'
-                            ? ($validated['delivery_account_number'] ?? null)
-                            : null,
-
-                        'account_holder_name' => $validated['delivery_account_holder_name'] ?? null,
-                        'transaction_id'      => $validated['delivery_transaction_id'] ?? null,
-                        'reference_no'        => null,
-
-                        'payment_status' => 'pending', // admin manually verify
-                        'paid_by'        => $user->id,
-
-                        'notes' => 'Delivery charge submitted by customer. Waiting for admin verification.',
+                if ($paidAmount > 0) {
+                    $payment = OrderPayment::create([
+                        'order_id'       => $order->id,
+                        'user_id'        => $user->id,
+                        'customer_id'    => $customer->id,
+                        'received_by'    => $user->id,
+                        'payment_type'   => OrderPayment::TYPE_PAYMENT,
+                        'payment_method' => $paymentMethod,
+                        'amount'         => $paidAmount,
+                        'currency'       => OrderPayment::CURRENCY_BDT,
+                        'paid_at'        => now(),
+                        'remarks'        => $validated['remarks'] ?? "Order payment received by user: {$user->name}",
+                        'ip_address'     => $request->ip(),
+                        'user_agent'     => $request->userAgent(),
                     ]);
                 }
 
-                // ----------------------------------------------------------------
-                // STEP 11: Mail (Optional)
-                // ----------------------------------------------------------------
-                // Mail::to($user->email)->send(new OrderMail($order));
+                return [
+                    'order'         => $order,
+                    'payment'       => $payment,
+                    'change_amount' => $changeAmount,
+                ];
+            }, 3);
 
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Order placed successfully.',
-                    'data' => [
-                        'order_id'       => $order->id,
-                        'order_number'   => $order->reg,
-                        'payment_status' => $order->payment_status,
-                        'total_amount' => $order->total_amount,
-                    ],
-                ], 201);
-            });
-
-            return $response;
+            return response()->json([
+                'success' => true,
+                'message' => 'Order placed successfully.',
+                'data'    => [
+                    'order'         => $result['order'],
+                    'payment'       => $result['payment'],
+                    'change_amount' => $result['change_amount'],
+                ],
+            ], 201);
 
         } catch (ValidationException $e) {
             return response()->json([
@@ -636,7 +609,6 @@ class AdminCartController extends Controller
                 'errors'  => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-
             Log::error('Order confirmation failed', [
                 'user_id' => $user?->id,
                 'reg'     => $reg,
