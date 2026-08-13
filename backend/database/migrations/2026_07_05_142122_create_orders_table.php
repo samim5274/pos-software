@@ -27,7 +27,9 @@ return new class extends Migration
 
             $table->decimal('subtotal', 14, 2)->default(0);
             $table->decimal('discount', 14, 2)->default(0);
+            $table->decimal('vat_percentage', 5, 2)->default(0);
             $table->decimal('vat', 14, 2)->default(0);
+            $table->decimal('due_amount', 14, 2)->default(0);
             $table->decimal('payable_amount', 14, 2)->default(0);
 
             $table->enum('payment_method', [
@@ -45,6 +47,8 @@ return new class extends Migration
 
             $table->enum('status', [
                 'pending',
+                'unpaid',
+                'partially_paid',
                 'completed',
                 'returned',
             ])->default('pending')->index();
@@ -58,6 +62,8 @@ return new class extends Migration
 
             $table->ipAddress('ip_address')->nullable();
             $table->text('user_agent')->nullable();
+
+            $table->timestamp('paid_at')->nullable()->index();
 
             $table->softDeletes();
             $table->timestamps();

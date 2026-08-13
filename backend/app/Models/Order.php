@@ -35,11 +35,15 @@ class Order extends Model
     public const CURRENCY_BDT = 'BDT';
 
     public const STATUS_PENDING = 'pending';
+    public const STATUS_UNPAID = 'unpaid';
+    public const STATUS_PARTIALLY_PAID = 'partially_paid';
     public const STATUS_COMPLETED = 'completed';
     public const STATUS_RETURNED = 'returned';
 
     public const ORDER_STATUSES = [
         self::STATUS_PENDING,
+        self::STATUS_UNPAID,
+        self::STATUS_PARTIALLY_PAID,
         self::STATUS_COMPLETED,
         self::STATUS_RETURNED,
     ];
@@ -58,7 +62,10 @@ class Order extends Model
 
         'subtotal',
         'discount',
+        'vat_percentage',
         'vat',
+
+        'due_amount',
         'payable_amount',
 
         'payment_method',
@@ -81,16 +88,14 @@ class Order extends Model
     ];
 
     protected $casts = [
-
         'order_date' => 'date',
-
         'subtotal' => 'decimal:2',
         'discount' => 'decimal:2',
+        'vat_percentage' => 'decimal:2',
         'vat' => 'decimal:2',
+        'due_amount' => 'decimal:2',
         'payable_amount' => 'decimal:2',
-
         'point' => 'integer',
-
         'paid_at' => 'datetime',
         'completed_at' => 'datetime',
         'returned_at' => 'datetime',
@@ -102,7 +107,9 @@ class Order extends Model
         'status' => self::STATUS_PENDING,
         'subtotal' => 0,
         'discount' => 0,
+        'vat_percentage' => 0,
         'vat' => 0,
+        'due_amount' => 0,
         'payable_amount' => 0,
         'point' => 0,
     ];

@@ -458,19 +458,26 @@ class AdminCartController extends Controller
                     ]);
                 }
 
-                $customerPhone = $validated['phone_number'] ?? null;
+                $customerPhone = isset($validated['phone_number']) ? trim($validated['phone_number']) : null;
                 $customerName  = isset($validated['customer_name']) ? trim($validated['customer_name']) : null;
 
                 $customer = null;
 
                 if ($customerPhone) {
-                    $customer = Customer::firstOrCreate(
-                        ['phone' => $customerPhone],
-                        ['customer_name' => $customerName ?? 'Walk-in Customer']
-                    );
+                    $customer = Customer::query()
+                        ->where('phone', $customerPhone)
+                        ->lockForUpdate()
+                        ->first();
 
-                    if ($customerName && blank($customer->customer_name)) {
-                        $customer->update(['customer_name' => $customerName]);
+                    if (!$customer) {
+                        $customer = Customer::create([
+                            'phone'        => $customerPhone,
+                            'customer_name' => $customerName ?: 'Walk-in Customer',
+                        ]);
+                    } elseif ( $customerName && blank($customer->customer_name) ) {
+                        $customer->update([
+                            'customer_name' => $customerName,
+                        ]);
                     }
                 }
 
@@ -493,8 +500,11 @@ class AdminCartController extends Controller
                 $payableAmount = round(max(0, $taxableAmount + $vat), 2);
 
                 $receivedAmount = round(max(0, (float) ($validated['received_amount'] ?? 0)), 2);
-                $changeAmount   = round(max(0, $receivedAmount - $payableAmount), 2);
                 $paidAmount     = round(min($receivedAmount, $payableAmount), 2);
+
+                $dueAmount = round(max(0,$payableAmount - $paidAmount),2);
+
+                $changeAmount = round(max(0,$receivedAmount - $payableAmount),2);
 
                 if ($payableAmount > 0 && $paidAmount <= 0) {
                     throw ValidationException::withMessages([
@@ -529,32 +539,32 @@ class AdminCartController extends Controller
 
                 $point = (int) $cartItems->sum(fn ($item) => (int) ($item->point ?? 0) * (int) $item->quantity);
 
-                $orderStatus = Order::STATUS_COMPLETED;
-
-                do {
-                    $slug = Str::slug(
-                        'order-' . $reg . '-' . now()->format('YmdHis') . '-' . Str::lower(Str::random(6))
-                    );
-                } while (Order::where('slug', $slug)->exists());
-
-                $orderNumber = 'ORD-' . now()->format('Ymd') . '-' . str_pad(
-                    (string) (Order::whereDate('created_at', now()->toDateString())->count() + 1), 4, '0', STR_PAD_LEFT
-                );
+                if ($payableAmount <= 0)
+                {
+                    $orderStatus = Order::STATUS_COMPLETED;
+                } elseif ($paidAmount >= $payableAmount) {
+                    $orderStatus = Order::STATUS_COMPLETED;
+                } elseif ($paidAmount > 0) {
+                    $orderStatus = Order::STATUS_PARTIALLY_PAID;
+                } else {
+                    $orderStatus = Order::STATUS_UNPAID;
+                }
 
                 $order = Order::create([
                     'reg'            => $reg,
-                    'order_number'   => $orderNumber,
-                    'slug'           => $slug,
+
                     'order_date'     => now()->toDateString(),
+
                     'user_id'        => $user->id,
                     'customer_id'    => $customer?->id,
-                    'customer_name'  => $customerName,
+                    'customer_name'  => $customerName ?: $customer?->customer_name ?: 'Walk-in Customer',
                     'customer_phone' => $customerPhone,
+
                     'subtotal'       => $subtotal,
                     'discount'       => $discount,
                     'vat_percentage' => $vatPercentage,
                     'vat'            => $vat,
-                    'due_amount'     => round(max(0, $payableAmount - $paidAmount), 2),
+                    'due_amount'     => $dueAmount,
                     'payable_amount' => $payableAmount,
                     'payment_method' => $paymentMethod,
                     'currency'       => Order::CURRENCY_BDT,
@@ -572,7 +582,7 @@ class AdminCartController extends Controller
                     $payment = OrderPayment::create([
                         'order_id'       => $order->id,
                         'user_id'        => $user->id,
-                        'customer_id'    => $customer->id,
+                        'customer_id'    => $customer?->id,
                         'received_by'    => $user->id,
                         'payment_type'   => OrderPayment::TYPE_PAYMENT,
                         'payment_method' => $paymentMethod,
@@ -585,10 +595,18 @@ class AdminCartController extends Controller
                     ]);
                 }
 
+                $order->load([
+                    'customer',
+                    'payments',
+                ]);
+
                 return [
-                    'order'         => $order,
-                    'payment'       => $payment,
+                    'order' => $order,
+                    'payment' => $payment,
+                    'paid_amount' => $paidAmount,
+                    'due_amount' => $dueAmount,
                     'change_amount' => $changeAmount,
+                    'received_amount' => $receivedAmount,
                 ];
             }, 3);
 
