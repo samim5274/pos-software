@@ -1,17 +1,15 @@
 <template>
     <div class="min-h-screen bg-white dark:bg-slate-950 transition-colors duration-200">
-        <Header
-        @open-sidebar="sidebarOpen = true"
-        @search="onSearch"
-        :isDark="isDark" @toggle-theme="toggleTheme"
+        <HeaderSection
+            :is-dark="isDark"
+            @toggle-dark="toggleDarkMode"
+            @toggle-menu="toggleMenu"
         />
 
         <div class="flex  min-h-[calc(100vh-56px)]">
             <Navbar
-                v-model="active"
-                :open="sidebarOpen"
-                @close="sidebarOpen = false"
-            />
+                :mobile-menu="mobileMenu"
+                @close="mobileMenu = false" />
 
             <Message
                 :successMsg="successMsg"
@@ -62,9 +60,10 @@
                                 >
                                     <option value="">All Statuses</option>
                                     <option value="pending">Pending</option>
-                                    <option value="processing">Processing</option>
-                                    <option value="delivered">Delivered</option>
-                                    <option value="cancelled">Cancelled</option>
+                                    <option value="unpaid">unpaid</option>
+                                    <option value="partially_paid">partially_paid</option>
+                                    <option value="completed">completed</option>
+                                    <option value="returned">returned</option>
                                 </select>
 
                                 <button 
@@ -91,7 +90,7 @@
                                         <th class="px-4 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest w-[16%]">Timeline</th>
                                         <th class="px-4 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest w-[16%]">Payment & Gateway</th>
                                         <th class="px-4 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest w-[14%] text-right">Financials (BDT)</th>
-                                        <th class="pl-4 pr-5 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest w-[14%] text-center">Order Status</th>
+                                        <th class="pl-4 pr-5 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest w-[14%] text-center">Action</th>
                                     </tr>
                                 </thead>
 
@@ -108,11 +107,11 @@
                                         </td>
                                     </tr>
                                     
-                                    <!-- Data Rows -->
+                                    <!-- Data Rows @click="viewOrderDetails(order)" -->
                                     <template v-else-if="filteredOrders && filteredOrders.length > 0">
                                         <tr v-for="order in filteredOrders" 
                                             :key="order.id" 
-                                            @click="viewOrderDetails(order)" 
+                                            
                                             :class="[
                                                 'hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-all duration-150 cursor-pointer group border-l-4 border-l-transparent',
                                                 order.status.toLowerCase() === 'pending' ? 'hover:border-l-amber-500' :
@@ -125,12 +124,12 @@
                                                 <div class="font-mono text-xs font-bold text-slate-900 dark:text-slate-100 tracking-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                                                     {{ order.reg }}
                                                 </div>
-                                                <div v-if="order.coupon_code" class="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono mt-0.5 flex items-center gap-1">
+                                                <div v-if="order.order_number" class="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono mt-0.5 flex items-center gap-1">
                                                     <i class="fa-solid fa-tag text-[9px]"></i>
-                                                    {{ order.coupon_code }}
+                                                    {{ order.order_number }}
                                                 </div>
                                                 <div v-else class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-                                                    No Coupon
+                                                    No Order Number
                                                 </div>
                                             </td>
 
@@ -139,16 +138,16 @@
                                                 <div class="flex items-center gap-2.5">
                                                     <!-- Initials Avatar -->
                                                     <div class="h-7 w-7 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center font-bold text-[10px] uppercase border border-slate-200/50 dark:border-slate-700/40">
-                                                        {{ order.user?.name ? order.user.name.substring(0, 2) : (order.contact_name ? order.contact_name.substring(0, 2) : 'CU') }}
+                                                        {{ (order.customer_name ? order.customer_name.substring(0, 2) : 'CU') }}
                                                     </div>
                                                     <div class="truncate max-w-[190px]">
                                                         <div class="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
-                                                            {{ order.user?.name || order.contact_name || 'Guest Customer' }}
+                                                            {{ order.customer_name || 'Guest Customer' }}
                                                         </div>
                                                         <div class="text-[10px] text-slate-400 dark:text-slate-500 font-mono mt-0.5 flex items-center gap-1">
-                                                            <span>{{ order.contact_number || 'No Phone' }}</span>
+                                                            <span>{{ order.customer_phone || 'No Phone' }}</span>
                                                             <span v-if="order.user?.user_id" class="text-slate-300 dark:text-slate-700">|</span>
-                                                            <span v-if="order.user?.user_id">ID: {{ order.user.user_id }}</span>
+                                                            <span v-if="order.user?.user_id">{{ order.user.user_id }}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -158,23 +157,12 @@
                                             <td class="px-4 py-2.5">
                                                 <!-- Order Creation Date -->
                                                 <div class="text-xs text-slate-600 dark:text-slate-400 font-medium mb-1">
-                                                    {{ formatDate(order.date) }}
+                                                    {{ formatDate(order.order_date) }}
                                                 </div>
 
-                                                <!-- Dynamic Status Badge -->
-                                                <div v-if="order.delivered_at" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                                                    <i class="fa-solid fa-circle-check text-[9px]"></i> 
-                                                    Delivered: {{ formatDate(order.delivered_at) }}
-                                                </div>
-
-                                                <div v-else-if="order.confirmed_at" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-400 border border-sky-200 dark:border-sky-800">
-                                                    <i class="fa-solid fa-clock text-[9px]"></i> 
-                                                    Confirmed
-                                                </div>
-
-                                                <div v-else class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                                                    <i class="fa-solid fa-circle-dot text-[9px]"></i> 
-                                                    Placed
+                                                <div  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                                                    <i class="fa-solid fa-star text-[9px]"></i> 
+                                                    {{ order.point }}
                                                 </div>
                                             </td>
 
@@ -187,59 +175,89 @@
                                                 </div>
                                                 <!-- Payment Status Badges based on model constants -->
                                                 <div class="text-[10px] font-semibold mt-0.5 flex items-center gap-1">
-                                                    <span class="h-1 w-1 rounded-full" 
+                                                    <span
+                                                        class="h-1 w-1 rounded-full"
                                                         :class="{
-                                                            'bg-emerald-500': order.payment_status === 'Paid',
-                                                            'bg-amber-500': order.payment_status === 'Pending',
-                                                            'bg-blue-500': order.payment_status === 'Partial',
-                                                            'bg-rose-500': order.payment_status === 'Failed' || order.payment_status === 'Refunded',
+                                                            'bg-amber-500': order.status === 'pending',
+                                                            'bg-rose-500': order.status === 'unpaid',
+                                                            'bg-blue-500': order.status === 'partially_paid',
+                                                            'bg-emerald-500': order.status === 'completed',
+                                                            'bg-orange-500': order.status === 'returned',
                                                         }"
                                                     ></span>
-                                                    <span :class="{
-                                                        'text-emerald-600 dark:text-emerald-400': order.payment_status === 'Paid',
-                                                        'text-amber-600 dark:text-amber-400': order.payment_status === 'Pending',
-                                                        'text-blue-600 dark:text-blue-400': order.payment_status === 'Partial',
-                                                        'text-rose-600 dark:text-rose-400': order.payment_status === 'Failed' || order.payment_status === 'Refunded',
-                                                    }">
-                                                        {{ order.payment_status }}
+
+                                                    <span
+                                                        :class="{
+                                                            'text-amber-600 dark:text-amber-400': order.status === 'pending',
+                                                            'text-rose-600 dark:text-rose-400': order.status === 'unpaid',
+                                                            'text-blue-600 dark:text-blue-400': order.status === 'partially_paid',
+                                                            'text-emerald-600 dark:text-emerald-400': order.status === 'completed',
+                                                            'text-orange-600 dark:text-orange-400': order.status === 'returned',
+                                                        }"
+                                                    >
+                                                        {{
+                                                            {
+                                                                pending: 'Pending',
+                                                                unpaid: 'Unpaid',
+                                                                partially_paid: 'Partially Paid',
+                                                                completed: 'Completed',
+                                                                returned: 'Returned',
+                                                            }[order.status] || order.status
+                                                        }}
                                                     </span>
                                                 </div>
                                             </td>
 
-                                            <!-- Financials (Payable Amount, Base Amount & Discounts) -->
+                                            <!-- (Payable Amount, Base Amount & Discounts) -->
                                             <td class="px-4 py-2.5 text-right">
                                                 <div class="text-xs font-bold text-slate-900 dark:text-slate-50 tabular-nums">
                                                     ৳{{ parseFloat(order.payable_amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                                                 </div>
                                                 <!-- Show discount summary if exists -->
-                                                <div v-if="parseFloat(order.coupon_discount) > 0 || parseFloat(order.discount) > 0" class="text-[9px] text-rose-500 font-medium mt-0.5">
-                                                    Saved ৳{{ (parseFloat(order.coupon_discount) + parseFloat(order.discount)).toFixed(0) }}
+                                                <div v-if="parseFloat(order.discount) > 0" class="text-[9px] text-orange-500 font-medium mt-0.5">
+                                                    Saved ৳{{ (parseFloat(order.discount)).toFixed(0) }}
                                                 </div>
                                                 <div v-else class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-                                                    Base: ৳{{ parseFloat(order.amount).toFixed(0) }}
+                                                    Base: ৳{{ parseFloat(order.payable_amount).toFixed(0) }}
                                                 </div>
                                             </td>
 
                                             <!-- Order Status Badge -->
                                             <td class="px-4 py-2 text-center whitespace-nowrap">
-                                                <span 
-                                                    :class="getStatus(order.status).container" 
-                                                    class="pl-2 pr-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 border shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all duration-300"
-                                                >
-                                                    <!-- Indicator Dot Wrapper -->
-                                                    <span class="relative flex h-1.5 w-1.5">
-                                                        <!-- Active/Processing Status Pings -->
-                                                        <span 
-                                                            v-if="['pending', 'processing', 'out for delivery'].includes(order.status.toLowerCase())"
-                                                            class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
-                                                            :class="getStatus(order.status).dot"
-                                                        ></span>
-                                                        <span class="relative inline-flex rounded-full h-1.5 w-1.5" :class="getStatus(order.status).dot"></span>
-                                                    </span>
-                                                    
-                                                    <!-- Status Text -->
-                                                    <span>{{ order.status }}</span>
-                                                </span>
+                                                <div class="inline-flex items-center p-1 rounded-xl bg-gray-100/80 dark:bg-gray-800/80 border border-gray-200/60 dark:border-gray-700/60 shadow-sm">
+                                                    <!-- Print Button -->
+                                                    <button
+                                                        type="button"
+                                                        title="Print Order"
+                                                        class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-gray-700 active:scale-95 transition-all duration-150"
+                                                    >
+                                                        <i class="fa-solid fa-print text-xs"></i>
+                                                    </button>
+
+                                                    <!-- Divider Line -->
+                                                    <div class="w-[1px] h-4 bg-gray-200 dark:bg-gray-700 mx-0.5"></div>
+
+                                                    <!-- Edit Button -->
+                                                    <button
+                                                        type="button"
+                                                        title="Edit Order"
+                                                        class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-500 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-white dark:hover:bg-gray-700 active:scale-95 transition-all duration-150"
+                                                    >
+                                                        <i class="fa-solid fa-pencil text-xs"></i>
+                                                    </button>
+
+                                                    <!-- Divider Line -->
+                                                    <div class="w-[1px] h-4 bg-gray-200 dark:bg-gray-700 mx-0.5"></div>
+
+                                                    <!-- Delete Button -->
+                                                    <button
+                                                        type="button"
+                                                        title="Delete Order"
+                                                        class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-500 dark:text-gray-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-white dark:hover:bg-gray-700 active:scale-95 transition-all duration-150"
+                                                    >
+                                                        <i class="fa-solid fa-trash text-xs"></i>
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     </template>
@@ -268,19 +286,28 @@
 
 <script setup>
 import { onMounted, ref, computed } from "vue";
-import { useRouter } from "vue-router";
-import api from '../../../services/api';
+import { useRouter } from 'vue-router'
+import api, {makeImg} from '../../../../services/api.js'
 
-import Navbar from '../admin/admin-navbar.vue';
-import Header from '../admin/admin-header.vue';
-import Message from '../../Message/message.vue';
-import FooterSection from "../../e-commerce/footer.vue";
+import Navbar from "../../admin/admin-navbar.vue";
+import HeaderSection from "../../admin/admin-header.vue";
+import Message from '../../../Message/message.vue'
+import FooterSection from "../../../footer.vue";
+
+
+
+const mobileMenu = ref(false);
+
+function toggleMenu() {
+    mobileMenu.value = !mobileMenu.value;
+}
+
+
+
 
 const sidebarOpen = ref(false);
 const active = ref("dashboard");
-
 const router = useRouter();
-
 const successMsg = ref('');
 const errorMsg = ref('');
 const search = ref('');
@@ -414,8 +441,8 @@ function viewOrderDetails(order){
 
 
 
+// dark and light mode
 const isDark = ref(false);
-
 function applyTheme(dark) {
     isDark.value = dark;
     document.documentElement.classList.toggle("dark", dark);
@@ -426,8 +453,10 @@ function toggleTheme() {
     applyTheme(!isDark.value);
 }
 
-const onSearch = () => {
-    console.log(search.value)
+function toggleDarkMode() {
+    isDark.value = !isDark.value;
+    document.documentElement.classList.toggle("dark",isDark.value);
+    localStorage.setItem("theme",isDark.value ? "dark" : "light");
 }
 
 /* ESC to close drawer */
@@ -435,22 +464,14 @@ onMounted(() => {
     fetchOrders();
 
 
-
-
-
-
     window.addEventListener("keydown", (e) => {
         if (e.key === "Escape") sidebarOpen.value = false;
     });
 
     const saved = localStorage.getItem("theme");
-
     if (saved === "dark") applyTheme(true);
     else if (saved === "light") applyTheme(false);
-    else {
-        const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        applyTheme(systemDark);
-    }
+    else applyTheme(window.matchMedia("(prefers-color-scheme: dark)").matches);
 });
 </script>
 

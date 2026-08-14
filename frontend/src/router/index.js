@@ -33,6 +33,7 @@ const AdminProductSetting = () => import('../components/Dashboard/admin/product/
 
 
 const SaleCart = () => import('../components/Dashboard/admin/cart/cart.vue');
+const OrderList = () => import('../components/Dashboard/admin/order/order.vue');
 
 
 
@@ -81,6 +82,7 @@ const routes = [
     
     // Sale Cart
     { path: '/sale-cart', component: SaleCart, meta: { requiresAuth: true, roles: ['admin', 'super_admin', 'staff'], title: "Sale Cart - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" } },
+    { path: '/admin/orders', component: OrderList, meta: { requiresAuth: true, roles: ['admin', 'super_admin', 'staff'], title: "Order List - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" } },
 ]
 
 

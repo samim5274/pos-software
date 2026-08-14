@@ -299,34 +299,34 @@ Route::middleware('auth:sanctum')->group(function () {
 // =============================
 // E-commerce Admin order Routes
 // =============================
-// Route::middleware('auth:sanctum')->group(function () {
-//     Route::prefix('orders')->group(function () {
-//         Route::get('/', [OrderController::class, 'index']);
-//         Route::get('/status', [OrderController::class, 'statusFilter']);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::prefix('orders')->group(function () {
+        Route::get('/', [OrderController::class, 'index']);
+        Route::get('/status', [OrderController::class, 'statusFilter']);
 
-//         Route::get('/customer/{user_id}', [OrderController::class, 'getCustomerDetails']);
-//         Route::get('/items/{reg}/payment/details', [EcommerceProductController::class, 'orderItemsDetails']);
+        // Route::get('/customer/{user_id}', [OrderController::class, 'getCustomerDetails']);
+        // Route::get('/items/{reg}/payment/details', [EcommerceProductController::class, 'orderItemsDetails']);
 
 
-//         Route::post('/confirm/{reg}', [OrderController::class, 'confirmOrder']);
-//         Route::post('/payments/{payment_id}/verify', [OrderController::class, 'verifyPayment']);
-//         Route::post('/{reg}/payments', [OrderController::class, 'confirmPayment']);
-//         Route::post('/update-status/{reg}', [OrderController::class, 'updateStatus']);
+        // Route::post('/confirm/{reg}', [OrderController::class, 'confirmOrder']);
+        // Route::post('/payments/{payment_id}/verify', [OrderController::class, 'verifyPayment']);
+        // Route::post('/{reg}/payments', [OrderController::class, 'confirmPayment']);
+        // Route::post('/update-status/{reg}', [OrderController::class, 'updateStatus']);
 
-//         Route::patch('/delivery-charge-payments/{id}/status', [OrderController::class, 'deliveryStatusUpdate']);
+        // Route::patch('/delivery-charge-payments/{id}/status', [OrderController::class, 'deliveryStatusUpdate']);
 
-//         Route::prefix('reports')->group(function(){
-//             Route::get('/sale', [OrderController::class, 'reportSale']);
-//             Route::get('/sale/filter', [OrderController::class, 'reportSaleFilter']);
-//         });
+        // Route::prefix('reports')->group(function(){
+        //     Route::get('/sale', [OrderController::class, 'reportSale']);
+        //     Route::get('/sale/filter', [OrderController::class, 'reportSaleFilter']);
+        // });
 
-//         Route::get('/user/details', [EcommerceProductController::class, 'userOrderDetails']);
+        // Route::get('/user/details', [EcommerceProductController::class, 'userOrderDetails']);
 
-//         Route::post('/check-coupon', [CouponController::class, 'checkCoupon']);
+        // Route::post('/check-coupon', [CouponController::class, 'checkCoupon']);
 
-//         Route::get('/{reg}', [OrderController::class, 'getOrderDetails']);
-//     });
-// });
+        // Route::get('/{reg}', [OrderController::class, 'getOrderDetails']);
+    });
+});
 
 // =============================
 // Coupon Controller
