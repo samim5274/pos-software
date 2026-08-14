@@ -21,11 +21,7 @@ use App\Models\Cart;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Services\RegGenerator;
-use App\Http\Requests\ConfirmOrderRequest;
-use App\Http\Requests\CustomerOrderRequest;
 use App\Http\Requests\CheckOutRequest;
-use App\Http\Requests\ConfirmPaymentRequest;
-use App\Services\PointService;
 use App\Mail\OrderMail;
 use App\Models\OrderPayment;
 
@@ -131,6 +127,7 @@ class AdminCartController extends Controller
                         'discount'          => $discountAmount,
                         'total_amount'    => $finalPrice,
                     ]);
+
                 } else {
                     $cartItem = Cart::create([
                         'reg'               => $reg,
@@ -139,9 +136,32 @@ class AdminCartController extends Controller
                         'quantity'          => $requestedQty,
                         'price'             => $basePrice,
                         'discount'          => $discountAmount,
-                        'total_amount'    => $finalPrice,
+                        'total_amount'      => $finalPrice,
                         'point'             => $product->point,
                     ]);
+
+
+                }
+
+                $stock = Stock::where('reg', $reg)->where('product_id', $product->id )->first();
+
+                if($stock) {
+                    $stock->update([
+                        'stockOut' => $newQty,
+                    ]);
+                } else {
+                    Stock::Create([
+                        'reg' => $reg,
+                        'date' => now()->toDateString(),
+                        'product_id' => $product->id,
+                        'stockOut' => $newQty,
+                        'remark' => 'add to cart by : '.  $user->name,
+                    ]);
+                }
+
+                if($product){
+                    $product->stock_quantity = $product->stock_quantity - $requestedQty;
+                    $product->update();
                 }
 
                 // ======================
@@ -276,6 +296,27 @@ class AdminCartController extends Controller
                     ]);
                 }
 
+                $stock = Stock::where('reg', $reg)->where('product_id', $product->id )->first();
+
+                if($stock) {
+                    $stock->update([
+                        'stockOut' => $newQty,
+                    ]);
+                } else {
+                    Stock::Create([
+                        'reg' => $reg,
+                        'date' => now()->toDateString(),
+                        'product_id' => $product->id,
+                        'stockOut' => $newQty,
+                        'remark' => 'add to cart by : '.  $user->name,
+                    ]);
+                }
+
+                if($product){
+                    $product->stock_quantity = $product->stock_quantity - $requestedQty;
+                    $product->update();
+                }
+
                 // ======================
                 // RESPONSE (OUTSIDE EXCEPTION FLOW STYLE)
                 // ======================
@@ -319,26 +360,86 @@ class AdminCartController extends Controller
             'quantity' => 'required|integer|min:1|max:100',
         ]);
 
-        $cartItem = Cart::where('reg', $reg)
-            ->where('product_id', $product_id)
-            ->first();
+        try {
+            return DB::transaction(function () use ($request, $reg, $product_id) {
 
-        if (!$cartItem) {
+                $cartItem = Cart::where('reg', $reg)
+                    ->where('product_id', $product_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$cartItem) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Cart item not found',
+                    ], 404);
+                }
+
+                $oldQty = $cartItem->quantity;
+                $newQty = $request->quantity;
+
+                // Quantity difference
+                $difference = $newQty - $oldQty;
+
+                // Update cart quantity
+                $cartItem->update([
+                    'quantity' => $newQty,
+                ]);
+
+                // Update stock record
+                $stock = Stock::where('reg', $reg)
+                    ->where('product_id', $product_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($stock) {
+                    $stock->update([
+                        'stockOut' => $newQty,
+                    ]);
+                }
+
+                // Update product stock
+                $product = Product::lockForUpdate()->find($product_id);
+
+                if ($product && $difference != 0) {
+
+                    if ($difference > 0) {
+                        // Cart quantity increased
+                        $product->decrement(
+                            'stock_quantity',
+                            $difference
+                        );
+
+                    } else {
+                        // Cart quantity decreased
+                        $product->increment(
+                            'stock_quantity',
+                            abs($difference)
+                        );
+                    }
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Qty updated successfully',
+                    'quantity' => $newQty,
+                ]);
+            });
+
+        } catch (\Throwable $e) {
+
+            \Log::error('Cart Qty Update Error', [
+                'reg' => $reg,
+                'product_id' => $product_id,
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Cart item not found',
-            ], 404);
+                'message' => 'Something went wrong',
+            ], 500);
         }
-
-        $cartItem->update([
-            'quantity' => $request->quantity,
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Qty updated successfully',
-            'quantity' => $cartItem->quantity,
-        ]);
     }
 
     public function removeToCart(Request $request, $cart_id, $reg, $product_id){
@@ -378,6 +479,20 @@ class AdminCartController extends Controller
             $remaining = Cart::where('user_id', $user->id)
                 ->where('reg', $reg)
                 ->count();
+
+            $stock = Stock::where('reg', $reg)
+                ->where('product_id', $product_id)
+                ->first();
+
+            if ($stock) {
+                $stock->delete();
+            }
+
+            $product = Product::lockForUpdate()->find($product_id);
+
+            if($product){
+                $product->increment('stock_quantity', $cartItem->quantity);
+            }
 
             return response()->json([
                 'success' => true,
