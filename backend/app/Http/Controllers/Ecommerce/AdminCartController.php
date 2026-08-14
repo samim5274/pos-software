@@ -403,6 +403,12 @@ class AdminCartController extends Controller
 
                 if ($product && $difference != 0) {
 
+                    if($product->stock_quantity <= 0) {
+                        throw ValidationException::withMessages([
+                            'quantity' => "Only {$product->stock_quantity} items are available in stock.",
+                        ]);
+                    }
+
                     if ($difference > 0) {
                         // Cart quantity increased
                         $product->decrement(
