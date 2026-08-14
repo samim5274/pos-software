@@ -131,17 +131,14 @@ class OrderController extends Controller
         }
     }
 
-    public function getOrderDetails($reg){
+    public function getOrderDetails($reg)
+    {
         try{
             $user = auth()->user();
 
             $order = Order::with([
-                    'user',
-                    'payment',
-                    'division:id,name',
-                    'district:id,name',
-                    'upazila:id,name',
-                    'policeStation:id,name',
+                    'user:id,name,user_id',
+                    'customer:id, customer_name, phone, address'
                 ])
                 ->where('reg', $reg)
                 ->first();
@@ -154,12 +151,9 @@ class OrderController extends Controller
                 ], 404);
             }
 
-            $deliveryCharge = DeliveryChargePayment::with('paidBy')
-            ->where('order_id', $order->id)->first();
-
             $orderPayment = null;
 
-            $orderPayment = OrderPayment::with('verifier:id,name,email')->where('order_id', $order->id)->first();
+            $orderPayment = OrderPayment::with(['order','user'])->where('order_id', $order->id)->first();
 
             return response()->json([
                 'success' => true,
@@ -167,7 +161,6 @@ class OrderController extends Controller
                 'data' => [
                     'order' => $order,
                     'payment' => $orderPayment,
-                    'deliveryCharge' => $deliveryCharge,
                     'user' => $user,
                 ],
             ], 200);

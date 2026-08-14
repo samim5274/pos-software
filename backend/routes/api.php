@@ -324,7 +324,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Route::post('/check-coupon', [CouponController::class, 'checkCoupon']);
 
-        // Route::get('/{reg}', [OrderController::class, 'getOrderDetails']);
+        Route::get('/{reg}', [OrderController::class, 'getOrderDetails']);
     });
 });
 

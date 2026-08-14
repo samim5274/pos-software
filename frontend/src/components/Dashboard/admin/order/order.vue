@@ -109,7 +109,7 @@
                                     
                                     <!-- Data Rows @click="viewOrderDetails(order)" -->
                                     <template v-else-if="filteredOrders && filteredOrders.length > 0">
-                                        <tr v-for="order in filteredOrders" 
+                                        <tr v-for="order in filteredOrders"  @click="viewOrderDetails(order)"
                                             :key="order.id" 
                                             
                                             :class="[

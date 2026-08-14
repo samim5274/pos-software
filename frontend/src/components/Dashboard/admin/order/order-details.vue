@@ -1,17 +1,15 @@
 <template>
     <div class="min-h-screen bg-white dark:bg-slate-950 transition-colors duration-200">
-        <Header
-        @open-sidebar="sidebarOpen = true"
-        @search="onSearch"
-        :isDark="isDark" @toggle-theme="toggleTheme"
+        <HeaderSection
+            :is-dark="isDark"
+            @toggle-dark="toggleDarkMode"
+            @toggle-menu="toggleMenu"
         />
 
         <div class="flex  min-h-[calc(100vh-56px)]">
             <Navbar
-                v-model="active"
-                :open="sidebarOpen"
-                @close="sidebarOpen = false"
-            />
+                :mobile-menu="mobileMenu"
+                @close="mobileMenu = false" />
 
             <Message
                 :successMsg="successMsg"
@@ -78,32 +76,31 @@
                                 <div class="space-y-1.5">
                                     <div class="flex flex-wrap items-center gap-2.5">
                                         <h1 class="text-xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
-                                            Order <span class="text-green-600 dark:text-orange-400">#{{ order.reg }}</span>
+                                            Order <span class="text-green-600 dark:text-orange-400">#0000000000</span>
                                         </h1>
 
                                         <span
-                                            v-if="order.coupon_id"
                                             class="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-mono text-xs font-semibold px-2 py-0.5 rounded-full border border-amber-200/60 dark:border-amber-900/50 uppercase tracking-wider"
                                             title="Coupon Applied" >
                                             <i class="fa-solid fa-tags text-amber-500"></i>
-                                            {{ order.coupon_code }}
+                                            Coupon
                                         </span>
                                     </div>
 
                                     <p class="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                                         <i class="fa-regular fa-calendar text-slate-400 dark:text-slate-500"></i>
-                                        Placed on {{ formatDate(order.date) }}
+                                        Placed on {{ formatDate(order.order_date) }}
                                     </p>
                                 </div>
                             </div>
 
                             <div class="flex items-center gap-3">
-                                <button @click="downloadInvoice" :disabled="invoiceDownloading"
+                                <button
                                     class="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm">
                                     <i class="fa-solid fa-download mr-1.5"></i>
-                                    {{ invoiceDownloading ? 'Preparing...' : 'Download Invoice' }}
+                                    Download Invoice
                                 </button>
-                                <button @click="printOrder(order)" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold shadow-md shadow-indigo-500/20 transition">
+                                <button class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold shadow-md shadow-indigo-500/20 transition">
                                     <i class="fa-solid fa-print mr-1.5"></i>Print Details
                                 </button>
                             </div>
@@ -133,12 +130,7 @@
                                         <p class="text-2xl font-bold font-mono text-slate-900 dark:text-white">{{ order.currency }} ৳ {{ Number(order.payable_amount).toLocaleString() }}</p>
                                     </div>
 
-                                    <div
-                                        @click="!(order.status === 'cancelled' || order.status === 'delivered') && openStatusModal()"
-                                        :class="(order.status === 'cancelled' || order.status === 'delivered')
-                                            ? 'opacity-50 cursor-not-allowed'
-                                            : 'cursor-pointer hover:border-indigo-500 dark:hover:border-indigo-500'"
-                                        class="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all group flex flex-col justify-between">
+                                    <div class="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all group flex flex-col justify-between">
                                         <div class="flex justify-between items-center mb-3">
                                             <div class="flex items-center gap-2">
                                                 <i class="fa-solid fa-truck-fast text-slate-400 text-sm"></i>
@@ -146,8 +138,8 @@
                                             </div>
                                             <i class="fa-solid fa-pencil h-4 w-4 text-slate-400 opacity-0 group-hover:opacity-100 transition"></i>
                                         </div>
-                                        <span :class="getStatus(order.status).container" class="px-3 py-1 rounded-lg text-[11px] font-bold uppercase inline-flex items-center gap-2 border border-transparent dark:border-current/10 w-fit">
-                                            <span class="h-2 w-2 rounded-full" :class="getStatus(order.status).dot"></span>
+                                        <span class="px-3 py-1 rounded-lg text-[11px] font-bold uppercase inline-flex items-center gap-2 border border-transparent dark:border-current/10 w-fit">
+                                            <span class="h-2 w-2 rounded-full"></span>
                                             {{ order.status }}
                                         </span>
                                     </div>
@@ -160,30 +152,6 @@
                                         <p class="text-2xl font-bold font-mono text-slate-900 dark:text-white">{{ Number(order.point).toLocaleString() }}</p>
                                     </div>
 
-                                </div>
-
-                                <!-- Order timeline -->
-                                <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
-                                    <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-6">Order Timeline</h3>
-                                    <div class="flex items-start overflow-x-auto pb-1 -mx-1 px-1">
-                                        <template v-for="(step, idx) in timelineSteps" :key="step.key">
-                                            <div class="flex flex-col items-center text-center min-w-[86px] shrink-0">
-                                                <div class="w-9 h-9 rounded-full flex items-center justify-center border-2" :class="stepClass(step)">
-                                                    <i :class="step.icon" class="text-xs"></i>
-                                                </div>
-                                                <p class="text-[11px] font-semibold mt-2 leading-tight"
-                                                    :class="step.reached ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-600'">
-                                                    {{ step.label }}
-                                                </p>
-                                                <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-                                                    {{ step.at ? formatDate(step.at) : (step.reached ? 'Reached' : 'Pending') }}
-                                                </p>
-                                            </div>
-                                            <div v-if="idx < timelineSteps.length - 1"
-                                                class="flex-1 h-0.5 mt-[18px] mx-1 min-w-[20px]"
-                                                :class="step.reached ? 'bg-indigo-400 dark:bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'"></div>
-                                        </template>
-                                    </div>
                                 </div>
 
                                 <!-- Transaction details -->
@@ -838,284 +806,61 @@
 
     </div>
 
-
-    <Teleport to="body">
-        <Transition
-            enter-active-class="transition duration-300 ease-out"
-            enter-from-class="opacity-0"
-            enter-to-class="opacity-100"
-            leave-active-class="transition duration-200 ease-in"
-            leave-from-class="opacity-100"
-            leave-to-class="opacity-0">
-            <div v-if="isStatusModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-
-                <div
-                    @click.stop
-                    class="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-
-                    <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                        <h3 class="text-lg font-bold text-slate-900 dark:text-white">Update Order Status</h3>
-                        <button @click="isStatusModalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                            <i class="fa-solid fa-x h-6 w-6"></i>
-                        </button>
-                    </div>
-
-                    <div class="p-6 space-y-3">
-                        <p class="text-sm text-slate-500 mb-4">Select the new status for order #{{ order.reg }}</p>
-
-                        <button
-                            v-for="(config, statusName) in statusConfig"
-                            :key="statusName"
-                            v-show="statusName !== 'default'"
-                            @click="updateStatus(statusName)"
-                            class="w-full flex items-center justify-between p-3 rounded-xl border transition-all"
-                            :class="[
-                                order.status.toLowerCase() === statusName.toLowerCase()
-                                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10'
-                                    : 'border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
-                            ]">
-
-                            <span :class="config.container" class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase inline-flex items-center gap-2">
-                                <span class="h-2 w-2 rounded-full" :class="config.dot"></span>
-                                {{ statusName }}
-                            </span>
-
-                            <div v-if="order.status.toLowerCase() === statusName.toLowerCase()" class="text-indigo-600">
-                                <i class="fa-solid fa-check h-5 w-5"></i>
-                            </div>
-                        </button>
-                    </div>
-
-                    <div class="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 flex justify-end">
-                        <button @click="isStatusModalOpen = false" class="text-sm font-semibold text-slate-600 dark:text-slate-400 hover:underline">
-                            Cancel
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </Transition>
-    </Teleport>
-
-    <Teleport to="body">
-        <Transition
-            enter-active-class="transition duration-300 ease-out"
-            enter-from-class="opacity-0"
-            enter-to-class="opacity-100"
-            leave-active-class="transition duration-200 ease-in"
-            leave-from-class="opacity-100"
-            leave-to-class="opacity-0">
-            <div v-if="isPaymentModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <div
-                @click.stop
-                class="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-
-                <!-- Header -->
-                <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                <div>
-                    <h3 class="text-lg font-bold text-slate-900 dark:text-white">Make payment</h3>
-                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Order #{{ order?.reg }}</p>
-                </div>
-                <button @click="isPaymentModalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                    <i class="fa-solid fa-x h-5 w-5"></i>
-                </button>
-                </div>
-
-                <form @submit.prevent="submitPayment" class="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
-
-                <!-- Amount -->
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-                    Amount <span class="text-red-500">*</span>
-                    </label>
-                    <div class="relative">
-                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">৳</span>
-                    <input
-                        v-model="paymentForm.amount"
-                        type="number"
-                        step="0.01"
-                        min="1"
-                        max="99999999.99"
-                        required
-                        class="w-full h-11 pl-7 pr-3 text-sm font-mono rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500" />
-                    </div>
-                </div>
-
-                <!-- Payment method -->
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-                    Payment method <span class="text-red-500">*</span>
-                    </label>
-                    <select
-                    v-model="paymentForm.payment_method"
-                    required
-                    class="w-full h-11 px-3 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500">
-                    <option value="cod">Cash on delivery</option>
-                    <option value="cash">Cash</option>
-                    <option value="bank_transfer">Bank transfer</option>
-                    <option value="mobile_banking">Mobile banking</option>
-                    <option value="card">Card</option>
-                    <option value="paypal">PayPal</option>
-                    <option value="wallet">Wallet</option>
-                    </select>
-                </div>
-
-                <!-- Bank transfer -->
-                <div v-if="paymentForm.payment_method === 'bank_transfer'" class="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800">
-                    <div>
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-                        Bank name <span class="text-red-500">*</span>
-                    </label>
-                    <input v-model="paymentForm.bank_name" required maxlength="150" class="w-full h-11 px-3 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500" />
-                    </div>
-                    <div>
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-                        Account number <span class="text-red-500">*</span>
-                    </label>
-                    <input v-model="paymentForm.account_number" required maxlength="100" class="w-full h-11 px-3 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500" />
-                    </div>
-                    <div class="md:col-span-2">
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-                        Account holder name <span class="text-red-500">*</span>
-                    </label>
-                    <input v-model="paymentForm.account_holder_name" required maxlength="150" class="w-full h-11 px-3 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500" />
-                    </div>
-                    <div class="md:col-span-2">
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-                        Transaction ID <span class="text-red-500">*</span>
-                    </label>
-                    <input v-model="paymentForm.transaction_id" required maxlength="100" class="w-full h-11 px-3 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500" />
-                    </div>
-                </div>
-
-                <!-- Mobile banking -->
-                <div v-if="paymentForm.payment_method === 'mobile_banking'" class="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800">
-                    <div>
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-                        Provider <span class="text-red-500">*</span>
-                    </label>
-                    <select v-model="paymentForm.provider" required class="w-full h-11 px-3 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500">
-                        <option value="" selected disabled>-- Select provider --</option>
-                        <option value="bkash">bKash</option>
-                        <option value="nagad">Nagad</option>
-                        <option value="rocket">Rocket</option>
-                    </select>
-                    </div>
-                    <div>
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-                        Sender mobile <span class="text-red-500">*</span>
-                    </label>
-                    <input v-model="paymentForm.sender_mobile" required maxlength="20" placeholder="01xxxxxxxxx" class="w-full h-11 px-3 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500" />
-                    </div>
-                    <div>
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-                        Sender name <span class="text-red-500">*</span>
-                    </label>
-                    <input v-model="paymentForm.sender_name" required maxlength="150" class="w-full h-11 px-3 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500" />
-                    </div>
-                    <div>
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-                        Transaction ID <span class="text-red-500">*</span>
-                    </label>
-                    <input v-model="paymentForm.transaction_id" required maxlength="100" class="w-full h-11 px-3 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500" />
-                    </div>
-                </div>
-
-                <!-- Card -->
-                <div v-if="paymentForm.payment_method === 'card'" class="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800">
-                    <div>
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-                        Gateway <span class="text-red-500">*</span>
-                    </label>
-                    <select v-model="paymentForm.provider" required class="w-full h-11 px-3 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500">
-                        <option value="">Select gateway</option>
-                        <option value="sslcommerz">SSLCommerz</option>
-                        <option value="stripe">Stripe</option>
-                    </select>
-                    </div>
-                    <div>
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-                        Gateway transaction ID <span class="text-red-500">*</span>
-                    </label>
-                    <input v-model="paymentForm.transaction_id" required maxlength="100" class="w-full h-11 px-3 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500" />
-                    </div>
-                </div>
-
-                <!-- PayPal -->
-                <div v-if="paymentForm.payment_method === 'paypal'" class="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800">
-                    <div>
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-                        Provider <span class="text-red-500">*</span>
-                    </label>
-                    <!-- provider is force-set to 'paypal' by a watcher on payment_method, not mutated inline here -->
-                    <input :value="paymentForm.provider" disabled
-                        class="w-full h-11 px-3 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400" />
-                    </div>
-                    <div>
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-                        PayPal transaction ID <span class="text-red-500">*</span>
-                    </label>
-                    <input v-model="paymentForm.transaction_id" required maxlength="100" class="w-full h-11 px-3 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500" />
-                    </div>
-                </div>
-
-                <!-- Remarks -->
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-                    Remarks <span class="font-normal text-slate-400">(optional)</span>
-                    </label>
-                    <textarea
-                    v-model="paymentForm.remarks"
-                    rows="2"
-                    maxlength="1000"
-                    placeholder="e.g. Advance payment"
-                    class="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 resize-none"></textarea>
-                </div>
-
-                <p v-if="paymentFormError" class="text-xs text-red-500 bg-red-50 dark:bg-red-950/30 rounded-lg px-3 py-2">{{ paymentFormError }}</p>
-
-                <div class="flex justify-end gap-3 pt-1">
-                    <button type="button" @click="isPaymentModalOpen = false" class="px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:underline">
-                    Cancel
-                    </button>
-                    <button type="submit" :disabled="paymentSubmitting"
-                    class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl shadow-md shadow-indigo-500/20 transition">
-                    {{ paymentSubmitting ? 'Processing...' : 'Confirm payment' }}
-                    </button>
-                </div>
-                </form>
-            </div>
-            </div>
-        </Transition>
-    </Teleport>
-
 </template>
 
 <script setup>
 import { onMounted, ref, computed, watch } from "vue";
-import { useRouter, useRoute } from "vue-router";
-import api, {makeImg} from '../../../services/api';
-import { UAParser } from 'ua-parser-js'
+import { useRouter, useRoute } from 'vue-router'
+import api, {makeImg} from '../../../../services/api.js'
 
-import Navbar from '../admin/admin-navbar.vue';
-import Header from '../admin/admin-header.vue';
-import Message from '../../Message/message.vue';
+import Navbar from "../../admin/admin-navbar.vue";
+import HeaderSection from "../../admin/admin-header.vue";
+import Message from '../../../Message/message.vue'
+import FooterSection from "../../../footer.vue";
 
-const sidebarOpen = ref(false);
-const active = ref("dashboard");
+
+
+
+
+
+
+
+
+const mobileMenu = ref(false);
+
+function toggleMenu() {
+    mobileMenu.value = !mobileMenu.value;
+}
+
+
+
+
+
+
+
+
 
 const router = useRouter();
 const route = useRoute();
-
 const loading = ref(false);
 const successMsg = ref('');
 const errorMsg = ref('');
+
+
+
+
+
+
+
+
+
+
+
 
 // =============================
 // Get orders
 // =============================
 const order = ref(null);
-const payments = ref(null);
-const deliveryCharge = ref(null);
 async function fetchOrderDetails(){
     loading.value = true;
     try{
@@ -1127,9 +872,7 @@ async function fetchOrderDetails(){
 
         const res = await api.get(`/orders/${route.params.reg}`);
         order.value = res.data.data.order;
-        const paymentData = res.data.data.payment;
-        payments.value = Array.isArray(paymentData) ? paymentData : (paymentData ? [paymentData] : []);
-        deliveryCharge.value = res.data.data.deliveryCharge;
+        console.log(order.value)
     } catch (err) {
         errorMsg.value =
             err.response?.data?.message ||
@@ -1142,355 +885,6 @@ async function fetchOrderDetails(){
 
 const formatDate = (date) => new Date(date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 
-const statusConfig = {
-    'Pending': {
-        container: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400',
-        dot: 'bg-amber-500'
-    },
-    'Confirmed': {
-        container: 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-400',
-        dot: 'bg-sky-500'
-    },
-    'Processing': {
-        container: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400',
-        dot: 'bg-indigo-500'
-    },
-    'Picked': {
-        container: 'bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400',
-        dot: 'bg-violet-500'
-    },
-    'Shipped': {
-        container: 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400',
-        dot: 'bg-blue-500'
-    },
-    'Out for Delivery': {
-        container: 'bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400',
-        dot: 'bg-orange-500'
-    },
-    'Delivered': {
-        container: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400',
-        dot: 'bg-emerald-500'
-    },
-    'Cancelled': {
-        container: 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400',
-        dot: 'bg-rose-500'
-    },
-    'Failed': {
-        container: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400',
-        dot: 'bg-red-600'
-    },
-    'Returned': {
-        container: 'bg-slate-100 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400',
-        dot: 'bg-slate-500'
-    },
-    default: {
-        container: 'bg-gray-100 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400',
-        dot: 'bg-gray-500'
-    }
-};
-
-const getStatus = (status) => {
-    if (!status) return statusConfig.default;
-    const matchedKey = Object.keys(statusConfig).find(
-        key => key.toLowerCase() === status.toLowerCase()
-    );
-    return statusConfig[matchedKey] || statusConfig.default;
-};
-
-
-const photoUrl = computed(() => {
-    const p = order.value?.user?.photo;
-    if (!p) return "/images/avatar.png";
-    return makeImg(p);
-});
-
-function statusStyle(status) {
-    const map = {
-        Pending: {
-            badge: 'bg-slate-100 dark:bg-slate-500/10 text-slate-600 dark:text-slate-400',
-            icon: 'fa-regular fa-clock',
-        },
-        Partial: {
-            badge: 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400',
-            icon: 'fa-solid fa-circle-half-stroke',
-        },
-        Paid: {
-            badge: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-            icon: 'fa-regular fa-circle-check',
-        },
-        Failed: {
-            badge: 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400',
-            icon: 'fa-regular fa-circle-xmark',
-        },
-        Refunded: {
-            badge: 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400',
-            icon: 'fa-solid fa-rotate-left',
-        },
-    };
-    return map[status] || map.Pending;
-}
-
-// Payment method display config
-function getPaymentMethod(method) {
-    const map = {
-        cod: {
-            label: 'Cash on delivery',
-            icon: 'fa-solid fa-money-bill-wave',
-            iconBg: 'bg-slate-100 dark:bg-slate-500/10',
-            iconColor: 'text-slate-500 dark:text-slate-400',
-        },
-        cash: {
-            label: 'Cash',
-            icon: 'fa-solid fa-money-bill-1-wave',
-            iconBg: 'bg-slate-100 dark:bg-slate-500/10',
-            iconColor: 'text-slate-500 dark:text-slate-400',
-        },
-        bank_transfer: {
-            label: 'Bank transfer',
-            icon: 'fa-solid fa-building-columns',
-            iconBg: 'bg-amber-50 dark:bg-amber-500/10',
-            iconColor: 'text-amber-600 dark:text-amber-400',
-        },
-        mobile_banking: {
-            label: 'Mobile banking',
-            icon: 'fa-solid fa-mobile-screen-button',
-            iconBg: 'bg-emerald-50 dark:bg-emerald-500/10',
-            iconColor: 'text-emerald-600 dark:text-emerald-400',
-        },
-        card: {
-            label: 'Card',
-            icon: 'fa-regular fa-credit-card',
-            iconBg: 'bg-indigo-50 dark:bg-indigo-500/10',
-            iconColor: 'text-indigo-600 dark:text-indigo-400',
-        },
-        paypal: {
-            label: 'PayPal',
-            icon: 'fa-brands fa-paypal',
-            iconBg: 'bg-blue-50 dark:bg-blue-500/10',
-            iconColor: 'text-blue-600 dark:text-blue-400',
-        },
-        wallet: {
-            label: 'Wallet',
-            icon: 'fa-solid fa-wallet',
-            iconBg: 'bg-purple-50 dark:bg-purple-500/10',
-            iconColor: 'text-purple-600 dark:text-purple-400',
-        },
-    };
-    return map[method] || map.cod;
-}
-
-function getPaymentStatus(status) {
-    const map = {
-        Pending: {
-            badge: 'bg-slate-100 dark:bg-slate-500/10 text-slate-600 dark:text-slate-400',
-            dot: 'bg-slate-400',
-            accentBar: 'bg-slate-300 dark:bg-slate-600',
-        },
-        Processing: {
-            badge: 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400',
-            dot: 'bg-blue-500',
-            accentBar: 'bg-blue-400',
-        },
-        Success: {
-            badge: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-            dot: 'bg-emerald-500',
-            accentBar: 'bg-emerald-500',
-        },
-        Failed: {
-            badge: 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400',
-            dot: 'bg-red-500',
-            accentBar: 'bg-red-400',
-        },
-        Cancelled: {
-            badge: 'bg-slate-100 dark:bg-slate-500/10 text-slate-500 dark:text-slate-400',
-            dot: 'bg-slate-400',
-            accentBar: 'bg-slate-300',
-        },
-        Refunded: {
-            badge: 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400',
-            dot: 'bg-purple-500',
-            accentBar: 'bg-purple-400',
-        },
-    };
-    return map[status] || map.Pending;
-}
-
-const parseUserAgent = (ua) => {
-    const parser = new UAParser(ua)
-    const result = parser.getResult()
-
-    return {
-        browser: `${result.browser.name || 'Unknown'} ${result.browser.version || ''}`,
-        os: `${result.os.name || 'Unknown'} ${result.os.version || ''}`,
-        device: result.device.type || 'Desktop',
-    }
-}
-
-// =============================
-// Paid / Due summary — computed from the payments relation
-// (Order.paid_amount / due_amount are not relied on; the payments
-// array is the source of truth for what has actually settled.)
-// =============================
-const totalPaid = computed(() => {
-    if (!payments.value || !payments.value.length) return 0;
-    return payments.value.reduce((sum, p) => {
-        if (p.status !== 'Success') return sum;
-        const amt = Number(p.amount) || 0;
-        return p.payment_type === 'Refund' ? sum - amt : sum + amt;
-    }, 0);
-});
-
-const dueAmount = computed(() => {
-    const payable = Number(order.value?.payable_amount) || 0;
-    return Math.max(payable - totalPaid.value, 0);
-});
-
-// =============================
-// Order timeline
-// =============================
-// Mirrors the full `status` enum on the orders table. The happy path
-// (Pending → ... → Delivered) has no dedicated `out_for_delivery_at`
-// column, so that step is inferred from status position instead of a
-// timestamp. Cancelled / Failed / Returned are terminal deviations that
-// can happen from any point in the happy path, so they get appended
-// on top of whichever steps were actually reached.
-const STATUS_SEQUENCE = ['Pending', 'Confirmed', 'Processing', 'Picked', 'Shipped', 'Out for Delivery', 'Delivered'];
-
-const TERMINAL_META = {
-    Cancelled: { icon: 'fa-solid fa-circle-xmark', style: 'border-red-500 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400', atField: 'cancelled_at' },
-    Failed: { icon: 'fa-solid fa-triangle-exclamation', style: 'border-red-500 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400', atField: null },
-    Returned: { icon: 'fa-solid fa-rotate-left', style: 'border-amber-500 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400', atField: null },
-};
-
-const timelineSteps = computed(() => {
-    if (!order.value) return [];
-    const o = order.value;
-    const currentIndex = STATUS_SEQUENCE.indexOf(o.status);
-    const terminal = TERMINAL_META[o.status] || null;
-
-    const steps = [
-        { key: 'placed', label: 'Placed', at: o.date, icon: 'fa-solid fa-cart-shopping' },
-        { key: 'confirmed', label: 'Confirmed', at: o.confirmed_at, icon: 'fa-solid fa-circle-check' },
-        { key: 'processing', label: 'Processing', at: o.processing_at, icon: 'fa-solid fa-gears' },
-        { key: 'picked', label: 'Picked', at: o.picked_at, icon: 'fa-solid fa-box' },
-        { key: 'shipped', label: 'Shipped', at: o.shipped_at, icon: 'fa-solid fa-truck' },
-        { key: 'out_for_delivery', label: 'Out for delivery', at: o.out_for_delivery_at ?? null, icon: 'fa-solid fa-truck-fast' },
-        { key: 'delivered', label: 'Delivered', at: o.delivered_at, icon: 'fa-solid fa-house-circle-check' },
-    ].map((s, idx) => ({
-        ...s,
-        // reached if it has its own timestamp, or the order's current
-        // status has already passed this step in the sequence
-        reached: idx === 0 || !!s.at || (currentIndex >= 0 && idx <= currentIndex),
-    }));
-
-    if (terminal) {
-        const reached = steps.filter(s => s.reached);
-        reached.push({
-            key: 'terminal',
-            label: o.status,
-            at: terminal.atField ? o[terminal.atField] : null,
-            reached: true,
-            icon: terminal.icon,
-            style: terminal.style,
-        });
-        return reached;
-    }
-
-    return steps;
-});
-
-function stepClass(step) {
-    if (step.style) return step.style;
-    if (step.reached) return 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400';
-    return 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-300 dark:text-slate-600';
-}
-
-// FIX: this function was called from the template ("Verify Payment" button)
-async function verifyPayment(paymentRecord) {
-    const confirmed = confirm(
-        "Are you sure you want to verify this payment?"
-    );
-
-    if (!confirmed) {
-        return;
-    }
-
-    try {
-        loading.value = true;
-        const res = await api.post(`/orders/payments/${paymentRecord.id}/verify`);
-        if (res.data.success) {
-            paymentRecord.status = 'Success';
-            paymentRecord.verified_at = new Date().toISOString();
-            successMsg.value = res.data.message || 'Payment verified.';
-            fetchOrderDetails();
-        } else {
-            errorMsg.value = res.data.message;
-        }
-    } catch (err) {
-        errorMsg.value =
-            err.response?.data?.message ||
-            err.message ||
-            "Something went wrong while verifying payment.";
-    } finally {
-        loading.value = false;
-    }
-}
-
-// open pop-up
-const isStatusModalOpen = ref(false);
-
-function openStatusModal() {
-    const status = order.value?.status?.toLowerCase();
-
-    if (status === "cancelled" || status === "delivered") {
-        errorMsg.value = "This order status cannot be modified.";
-        return;
-    }
-
-    isStatusModalOpen.value = true;
-}
-
-async function updateStatus(newStatus){
-    try{
-        loading.value = true;
-        const res = await api.post(`/orders/update-status/${route.params.reg}`, {
-            status: newStatus.toLowerCase()
-        });
-        if (res.data.success) {
-            order.value.status = newStatus;
-            successMsg.value = res.data.message;
-        } else {
-            errorMsg.value = res.data.message;
-        }
-    } catch (err) {
-        errorMsg.value =
-            err.response?.data?.message ||
-            err.message ||
-            "Something went wrong while updating status.";
-    } finally {
-        loading.value = false;
-
-        setTimeout(() => {
-            isStatusModalOpen.value = false;
-        }, 200);
-    }
-}
-
-// Get order cart items
-const cartItems = ref([]);
-async function getCartItems() {
-    loading.value = true;
-    try {
-        const res = await api.get(`/cart/${route.params.reg}`);
-        cartItems.value = res.data.data;
-    } catch (err) {
-        console.error(err);
-        errorMsg.value = err || "Something is wrong";
-    } finally {
-        loading.value = false;
-    }
-}
-
 const defaultProductImage = "/images/product/default-product.webp";
 
 const getProductImage = (item) => {
@@ -1501,90 +895,22 @@ const getProductImage = (item) => {
     return defaultProductImage;
 };
 
-const isPaymentModalOpen = ref(false);
-const paymentSubmitting = ref(false);
-const paymentFormError = ref('');
 
-const paymentForm = ref({
-    amount: '',
-    payment_method: 'cash',
-    provider: '',
-    transaction_id: '',
-    sender_name: '',
-    sender_mobile: '',
-    bank_name: '',
-    account_number: '',
-    account_holder_name: '',
-    remarks: '',
-});
 
-// FIX: the previous version mutated paymentForm.provider inside a template
-// expression ( :value="paymentForm.provider = 'paypal'" ), which is an
-// anti-pattern in Vue. A watcher now owns that side effect.
-watch(() => paymentForm.value.payment_method, (method) => {
-    if (method === 'paypal') {
-        paymentForm.value.provider = 'paypal';
-    } else if (paymentForm.value.provider === 'paypal') {
-        paymentForm.value.provider = '';
-    }
-});
 
-function resetPaymentForm() {
-    paymentForm.value = {
-        amount: order.value?.payable_amount ?? '',
-        payment_method: 'cash',
-        provider: '',
-        transaction_id: '',
-        sender_name: '',
-        bank_name: '',
-        account_number: '',
-        account_holder_name: '',
-        sender_mobile: '',
-        remarks: '',
-    };
-    paymentFormError.value = '';
-}
 
-function openPaymentModal() {
-    resetPaymentForm();
-    isPaymentModalOpen.value = true;
-}
 
-async function submitPayment() {
-    paymentFormError.value = '';
 
-    if (!paymentForm.value.amount || Number(paymentForm.value.amount) <= 0) {
-        paymentFormError.value = 'Please enter a valid amount.';
-        return;
-    }
 
-    paymentSubmitting.value = true;
-    try {
-        const res = await api.post(`/orders/${route.params.reg}/payments`, {
-            ...paymentForm.value
-        });
 
-        if (res.data.success) {
-            const newPayment = res.data.data.payment ?? res.data.data;
-            payments.value = payments.value && payments.value.length
-                ? [newPayment, ...payments.value]
-                : [newPayment];
 
-            successMsg.value = res.data.message || 'Payment recorded successfully.';
-            isPaymentModalOpen.value = false;
-            fetchOrderDetails();
-        } else {
-            paymentFormError.value = res.data.message || 'Something went wrong.';
-        }
-    } catch (err) {
-        paymentFormError.value =
-            err.response?.data?.message ||
-            err.message ||
-            'Something went wrong while recording the payment.';
-    } finally {
-        paymentSubmitting.value = false;
-    }
-}
+
+
+
+
+
+
+
 
 function ProductDetails(item) {
     router.push(`/product-details/${item.product.slug}`)
@@ -1610,123 +936,11 @@ function viewCustomerFullProfile(order){
 
 
 
-const statusDropdownOpen = ref(false);
-const statusUpdating = ref(false);
-
-const statusOptions = [
-    { value: 'pending' },
-    { value: 'success' },
-    { value: 'return' },
-    { value: 'failed' },
-];
-
-async function updateDeliveryStatus(newStatus) {
-    if (newStatus === deliveryCharge.value.payment_status) {
-        statusDropdownOpen.value = false;
-        return;
-    }
-
-    const previousStatus = deliveryCharge.value.payment_status;
-    deliveryCharge.value.payment_status = newStatus;
-    statusDropdownOpen.value = false;
-    statusUpdating.value = true;
-
-    try {
-        await api.patch(`/orders/delivery-charge-payments/${deliveryCharge.value.id}/status`, {
-            payment_status: newStatus,
-        });
-    } catch (err) {
-        deliveryCharge.value.payment_status = previousStatus;
-        errorMsg.value = err.response?.data?.message || err.message || 'Failed to update status.';
-    } finally {
-        statusUpdating.value = false;
-    }
-}
-
-function handleClickOutside(event) {
-    if (!event.target.closest('.status-dropdown')) {
-        statusDropdownOpen.value = false;
-    }
-}
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// =============================
-// Print / Download invoice
-// =============================
-function printOrder(order) {
-    const win = window.open("about:blank", "_blank");
-    if(!win){
-        alert("Popup blocked! Allow popups.");
-        return;
-    }
-    console.log(order)
-    win.location.href = `/admin/order/invoice-print/${order.reg}`;
-}
-
-const invoiceDownloading = ref(false);
-async function downloadInvoice() {
-    // NOTE: adjust this endpoint to whatever your backend actually exposes
-    // for generating the invoice PDF.
-    invoiceDownloading.value = true;
-    try {
-        const res = await api.get(`/orders/${route.params.reg}/invoice`, { responseType: 'blob' });
-        const url = window.URL.createObjectURL(new Blob([res.data]));
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `invoice-${order.value.reg}.pdf`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-    } catch (err) {
-        errorMsg.value =
-            err.response?.data?.message ||
-            err.message ||
-            "Could not download the invoice.";
-    } finally {
-        invoiceDownloading.value = false;
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// dark and light mode
 const isDark = ref(false);
-
 function applyTheme(dark) {
     isDark.value = dark;
     document.documentElement.classList.toggle("dark", dark);
@@ -1737,28 +951,25 @@ function toggleTheme() {
     applyTheme(!isDark.value);
 }
 
-function onSearch(q) {
-    console.log("search:", q);
+function toggleDarkMode() {
+    isDark.value = !isDark.value;
+    document.documentElement.classList.toggle("dark",isDark.value);
+    localStorage.setItem("theme",isDark.value ? "dark" : "light");
 }
 
 /* ESC to close drawer */
 onMounted(() => {
 
     fetchOrderDetails();
-    getCartItems();
 
     window.addEventListener("keydown", (e) => {
         if (e.key === "Escape") sidebarOpen.value = false;
     });
 
     const saved = localStorage.getItem("theme");
-
     if (saved === "dark") applyTheme(true);
     else if (saved === "light") applyTheme(false);
-    else {
-        const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        applyTheme(systemDark);
-    }
+    else applyTheme(window.matchMedia("(prefers-color-scheme: dark)").matches);
 });
 </script>
 
