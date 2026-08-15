@@ -138,7 +138,7 @@ class OrderController extends Controller
 
             $order = Order::with([
                     'user:id,name,user_id',
-                    'customer:id, customer_name, phone, address'
+                    'customer:id,customer_name,phone,address'
                 ])
                 ->where('reg', $reg)
                 ->first();
@@ -155,6 +155,13 @@ class OrderController extends Controller
 
             $orderPayment = OrderPayment::with(['order','user'])->where('order_id', $order->id)->first();
 
+            $cartItems = Cart::with([
+                    'product:id,name',
+                    'product.images:id,product_id,image_path,is_primary,sort_order'
+                ])
+                ->where('reg', $order->reg)
+                ->get();
+
             return response()->json([
                 'success' => true,
                 'message' => 'Order fetched successfully.',
@@ -162,6 +169,7 @@ class OrderController extends Controller
                     'order' => $order,
                     'payment' => $orderPayment,
                     'user' => $user,
+                    'cartItems' => $cartItems,
                 ],
             ], 200);
         } catch (\Throwable $e) {

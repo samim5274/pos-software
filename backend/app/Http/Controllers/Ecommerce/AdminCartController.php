@@ -693,6 +693,7 @@ class AdminCartController extends Controller
                     'status'         => $orderStatus,
                     'completed_at'   => $orderStatus === Order::STATUS_COMPLETED ? now() : null,
                     'remarks'        => $validated['remarks'] ?? "Order created by user: {$user->name}",
+                    'paid_at'        => now()->toDateString(),
                     'ip_address'     => $request->ip(),
                     'user_agent'     => $request->userAgent(),
                 ]);
