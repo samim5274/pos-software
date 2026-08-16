@@ -36,46 +36,53 @@
                         </div>
                     </div>
 
-                    <div class="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                        <div class="flex flex-col gap-4 lg:flex-row lg:items-center">
+                    <div class="mb-6 rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 transition-colors">
+                        <div class="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center">
                             
-                            <div class="relative flex-1">
-                                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
-                                    <i class="fa-solid fa-magnifying-glass h-4 w-4"></i>
+                            <!-- Search Input -->
+                            <div class="relative flex-1 w-full">
+                                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 dark:text-slate-500">
+                                    <i class="fa-solid fa-magnifying-glass text-xs sm:text-sm"></i>
                                 </div>
                                 <input 
                                     type="text" 
                                     v-model="searchQuery" 
                                     placeholder="Search by ID, Customer name or Transaction..." 
-                                    class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-11 pr-4 text-sm text-slate-900 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-indigo-500"
+                                    class="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-2.5 pl-10 pr-4 text-xs sm:text-sm text-slate-900 placeholder-slate-400 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:border-slate-700/80 dark:bg-slate-800/60 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-indigo-500 dark:focus:bg-slate-800 dark:focus:ring-indigo-500/20"
                                 />
                             </div>
 
-                            <div class="flex flex-wrap items-center gap-3">
-                                <div class="flex items-center gap-2">
-                                    <i class="fa-solid fa-filter h-4 w-4 text-slate-400"></i>
-                                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Status:</span>
-                                </div>
-                                <select 
-                                    v-model="statusFilter" 
-                                    class="min-w-[160px] rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-4 text-sm font-semibold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:focus:border-indigo-500"
-                                >
-                                    <option value="">All Statuses</option>
-                                    <option value="pending">Pending</option>
-                                    <option value="unpaid">unpaid</option>
-                                    <option value="partially_paid">partially_paid</option>
-                                    <option value="completed">completed</option>
-                                    <option value="returned">returned</option>
-                                </select>
+                            <!-- Filter Dropdown & Reset Action -->
+                            <div class="flex items-center gap-2 sm:gap-3 w-full lg:w-auto justify-between lg:justify-end">
+                                <div class="flex items-center gap-2 flex-1 sm:flex-initial min-w-0">
+                                    <div class="hidden sm:flex items-center gap-1.5 shrink-0">
+                                        <i class="fa-solid fa-filter text-xs text-slate-400 dark:text-slate-500"></i>
+                                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Status:</span>
+                                    </div>
 
+                                    <select 
+                                        v-model="statusFilter" 
+                                        class="w-full sm:w-auto sm:min-w-[160px] rounded-xl border border-slate-200 bg-slate-50/80 py-2.5 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:bg-white dark:border-slate-700/80 dark:bg-slate-800/60 dark:text-slate-300 dark:focus:border-indigo-500 dark:focus:bg-slate-800"
+                                    >
+                                        <option value="" class="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">All Statuses</option>
+                                        <option value="pending" class="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Pending</option>
+                                        <option value="unpaid" class="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Unpaid</option>
+                                        <option value="partially_paid" class="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Partially Paid</option>
+                                        <option value="completed" class="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Completed</option>
+                                        <option value="returned" class="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Returned</option>
+                                    </select>
+                                </div>
+
+                                <!-- Reset Button -->
                                 <button 
                                     @click="resetFilters" 
-                                    class="p-2.5 text-slate-400 hover:text-rose-500 transition-colors"
+                                    class="inline-flex items-center justify-center shrink-0 h-10 w-10 rounded-xl border border-slate-200 bg-slate-50/80 text-slate-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 dark:border-slate-700/80 dark:bg-slate-800/60 dark:text-slate-400 dark:hover:border-rose-900/50 dark:hover:bg-rose-950/30 dark:hover:text-rose-400 transition-all active:scale-95"
                                     title="Reset Filters"
                                 >
-                                    <i class="fa-solid fa-rotate h-5 w-5"></i>
+                                    <i class="fa-solid fa-rotate text-sm"></i>
                                 </button>
                             </div>
+
                         </div>
                     </div>
 
@@ -532,58 +539,6 @@ async function changePage(page) {
 }
 
 const formatDate = (date) => new Date(date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
-
-const statusConfig = {
-    'pending': {
-        container: 'bg-amber-50 text-amber-700 border-amber-200/70 dark:bg-amber-500/5 dark:text-amber-400 dark:border-amber-500/20',
-        dot: 'bg-amber-500'
-    },
-    'confirmed': {
-        container: 'bg-sky-50 text-sky-700 border-sky-200/70 dark:bg-sky-500/5 dark:text-sky-400 dark:border-sky-500/20',
-        dot: 'bg-sky-500'
-    },
-    'processing': {
-        container: 'bg-indigo-50 text-indigo-700 border-indigo-200/70 dark:bg-indigo-500/5 dark:text-indigo-400 dark:border-indigo-500/20',
-        dot: 'bg-indigo-500'
-    },
-    'picked': {
-        container: 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200/70 dark:bg-fuchsia-500/5 dark:text-fuchsia-400 dark:border-fuchsia-500/20',
-        dot: 'bg-fuchsia-500'
-    },
-    'shipped': {
-        container: 'bg-blue-50 text-blue-700 border-blue-200/70 dark:bg-blue-500/5 dark:text-blue-400 dark:border-blue-500/20',
-        dot: 'bg-blue-500'
-    },
-    'out for delivery': {
-        container: 'bg-orange-50 text-orange-700 border-orange-200/70 dark:bg-orange-500/5 dark:text-orange-400 dark:border-orange-500/20',
-        dot: 'bg-orange-500'
-    },
-    'delivered': {
-        container: 'bg-emerald-50 text-emerald-700 border-emerald-200/70 dark:bg-emerald-500/5 dark:text-emerald-400 dark:border-emerald-500/20',
-        dot: 'bg-emerald-500'
-    },
-    'cancelled': {
-        container: 'bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-500/5 dark:text-rose-400 dark:border-rose-500/10',
-        dot: 'bg-rose-400'
-    },
-    'failed': {
-        container: 'bg-red-50 text-red-700 border-red-100 dark:bg-red-500/5 dark:text-red-400 dark:border-red-500/10',
-        dot: 'bg-red-500'
-    },
-    'returned': {
-        container: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700/60',
-        dot: 'bg-slate-400'
-    },
-    'default': {
-        container: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700/60',
-        dot: 'bg-slate-400'
-    }
-};
-
-const getStatus = (status) => {
-    if (!status) return statusConfig.default;
-    return statusConfig[status.toLowerCase()] || statusConfig.default;
-};
 
 const filteredOrders = computed(() => {
     return orders.value.filter(order => {

@@ -190,11 +190,11 @@
                                 <button
                                 class="w-full px-4 py-2 text-sm text-left transition
                                         hover:bg-white dark:hover:bg-white/10"
-                                :class="activeKey === 'order_status'
+                                :class="activeKey === 'order_payment'
                                     ? 'bg-white text-slate-900 font-medium dark:bg-white/10 dark:text-white'
                                     : 'text-slate-700 dark:text-slate-200/90'"
-                                @click="pick('order_status')">
-                                Status
+                                @click="pick('order_payment')">
+                                Payment
                                 </button>
                             </li>
 
@@ -329,7 +329,7 @@ const routeMap = {
     product_setting: "/admin/product/setting",
 
     orders: "/admin/orders",
-    order_status: "/admin/orders/status",
+    order_payment: "/admin/orders/payment",
     order_create: "/admin/orders/create",
 
     payment: "/admin/payment",
@@ -386,7 +386,7 @@ const routeMatch = [
     { key: "product_setting", prefixes: ["/admin/product/setting"] },
 
     { key: "order_create", prefixes: ["/admin/orders/create"] },
-    { key: "order_status", prefixes: ["/admin/orders/status"] },
+    { key: "order_payment", prefixes: ["/admin/orders/payment"] },
     { key: "orders", prefixes: ["/admin/orders", "/admin/customer-details/"] },
 
     { key: "payment", prefixes: ["/admin/payment"]},
@@ -516,7 +516,7 @@ watch(
 watch(
     () => activeKey.value,
     (k) => {
-        const orderKeys = ["orders", "order_status", "sales", "order_create"];
+        const orderKeys = ["orders", "order_payment", "sales", "order_create"];
         if (orderKeys.includes(k)) {
         orderPagesOpen.value = true;
         }

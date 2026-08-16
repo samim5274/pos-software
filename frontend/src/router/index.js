@@ -36,6 +36,7 @@ const SaleCart = () => import('../components/Dashboard/admin/cart/cart.vue');
 const OrderList = () => import('../components/Dashboard/admin/order/order.vue');
 const OrderDetails = () => import('../components/Dashboard/admin/order/order-details.vue');
 const PrintInvoice = () => import('../components/Dashboard/admin/order/print/print-order-invoice-80mm.vue');
+const OrderPayment = () => import('../components/Dashboard/admin/order/order-payment.vue');
 
 
 
@@ -87,6 +88,7 @@ const routes = [
     { path: '/admin/orders/:reg/:slug', component: OrderDetails, meta: { requiresAuth: true, roles: ['admin', 'super_admin', 'staff'], title: "Order Details - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" } },
     // Print invoice
     { path: '/admin/order/invoice-print/:reg', component: PrintInvoice, meta: {requiresAuth: true, roles: ['admin', 'super_admin'], title: "Print Order Details"}},
+    { path: '/admin/orders/payment', component: OrderPayment, meta: {requiresAuth: true, roles: ['admin', 'super_admin'], title: "Order Payment Details"}},
 ]
 
 

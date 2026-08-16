@@ -303,7 +303,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('orders')->group(function () {
         Route::get('/', [OrderController::class, 'index']);
         Route::post('/return/{reg}/{slug}/{id}', [OrderController::class, 'orderReturn']);
-        // Route::get('/status', [OrderController::class, 'statusFilter']);
+        Route::get('/status', [OrderController::class, 'statusFilter']);
 
         // Route::get('/customer/{user_id}', [OrderController::class, 'getCustomerDetails']);
         // Route::get('/items/{reg}/payment/details', [EcommerceProductController::class, 'orderItemsDetails']);

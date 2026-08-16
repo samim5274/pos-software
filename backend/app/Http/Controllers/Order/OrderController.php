@@ -257,63 +257,76 @@ class OrderController extends Controller
         }
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     public function statusFilter(Request $request)
     {
         try{
-            $query = Order::query()->with('user');
+            $validated = $request->validate([
+                'search' => ['nullable', 'string', 'max:100'],
+                'status' => ['nullable', 'in:' . implode(',', OrderPayment::PAYMENT_TYPES)],
+                'payment_method' => ['nullable', 'in:' . implode(',', OrderPayment::PAYMENT_METHODS)],
+                'page' => ['nullable', 'integer', 'min:1'],
+                'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            ]);
 
-            if ($request->filled('status')) {
-                $query->where('status', $request->status);
+            $perPage = (int) ($validated['per_page'] ?? 20);
+
+
+            $query = OrderPayment::query()
+                ->with([
+                    'user:id,name,user_id',
+                    'order:id,reg,order_number,customer_name,customer_phone',
+                ]);
+
+            if (!empty($validated['status'])) {
+                $query->where(
+                    'payment_type',
+                    $validated['status']
+                );
             }
 
-            if ($request->filled('search')) {
+            if (!empty($validated['payment_method'])) {
+                $query->where(
+                    'payment_method',
+                    $validated['payment_method']
+                );
+            }
 
-                $search = trim($request->search);
-
+            if (!empty($validated['search'])) {
+                $search = trim($validated['search']);
                 $query->where(function ($q) use ($search) {
 
-                    $q->where('reg', 'like', "%{$search}%")
-                    ->orWhere('status', 'like', "%{$search}%");
+                    $q->where('payment_number', 'like', "%{$search}%")
+                        ->orWhere('receipt_no', 'like', "%{$search}%")
+                        ->orWhere('remarks', 'like', "%{$search}%");
 
-                    // transaction_id column
-                    if (\Schema::hasColumn('orders', 'transaction_id')) {
-                        $q->orWhere('transaction_id', 'like', "%{$search}%");
-                    }
+                    $q->orWhereHas('order', function ($order) use ($search) {
 
-                    $q->orWhereHas('user', function ($user) use ($search) {
-
-                        $user->where('name', 'like', "%{$search}%");
-
-                        // user_id column
-                        if (\Schema::hasColumn('users', 'user_id')) {
-                            $user->orWhere('user_id', 'like', "%{$search}%");
-                        }
-
+                        $order->where('order_number', 'like', "%{$search}%")
+                            ->orWhere('reg', 'like', "%{$search}%")
+                            ->orWhere('customer_name', 'like', "%{$search}%")
+                            ->orWhere('customer_phone', 'like', "%{$search}%");
                     });
 
+                    $q->orWhereHas('user', function ($user) use ($search) {
+                        $user->where('name', 'like', "%{$search}%");
+                        if (\Schema::hasColumn('users', 'user_id')) {
+                            $user->orWhere(
+                                'user_id',
+                                'like',
+                                "%{$search}%"
+                            );
+                        }
+                    });
                 });
             }
 
-            $orders = $query->latest()->paginate(20);
+            $payments = $query->latest('id')->paginate($perPage)->withQueryString();
 
             return response()->json([
                 'success' => true,
-                'data' => $orders,
-            ]);
+                'message' => 'Payment records fetched successfully.',
+                'data' => $payments,
+            ], 200);
 
         } catch (\Throwable $e) {
             return response()->json([
@@ -324,6 +337,20 @@ class OrderController extends Controller
             ], 500);
         }
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     public function getOrderDetails($reg)
     {
