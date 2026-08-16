@@ -42,6 +42,24 @@ const OrderPayment = () => import('../components/Dashboard/admin/order/order-pay
 
 
 
+
+
+
+
+const C_Notice = () => import('../components/Dashboard/admin/notice/notice.vue');
+const C_Notice_details = () => import('../components/Dashboard/admin/notice/customer-notice-details.vue');
+
+
+
+
+
+
+
+
+
+
+
+
 const routes = [
     // Auth Routes
     { path: '/login', component: Login, meta: {title: "Login - Mercuviax - Pos Software | Bangladesh's Best POS Software Company"} },
@@ -89,6 +107,19 @@ const routes = [
     // Print invoice
     { path: '/admin/order/invoice-print/:reg', component: PrintInvoice, meta: {requiresAuth: true, roles: ['admin', 'super_admin'], title: "Print Order Details"}},
     { path: '/admin/orders/payment', component: OrderPayment, meta: {requiresAuth: true, roles: ['admin', 'super_admin'], title: "Order Payment Details"}},
+
+
+
+
+
+
+
+
+
+
+    { path: '/admin/notice', component: C_Notice, meta:{title: 'Notice', requiresAuth: true, roles: ['customer', 'admin', 'super_admin']}},
+    { path: '/admin/notice/:id/details', component: C_Notice_details, meta:{title: 'Notice Details', requiresAuth: true, roles: ['customer', 'admin', 'super_admin']}},
+
 ]
 
 

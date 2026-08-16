@@ -197,16 +197,58 @@
                                 Payment
                                 </button>
                             </li>
+                        </ul>
+                    </div>
+                </li>
 
+
+
+
+
+
+
+
+
+
+                <!-- Order -->
+                <li>
+                    <button
+                        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition
+                            focus:outline-none focus:ring-2 focus:ring-slate-500/40
+                            hover:bg-slate-100 dark:hover:bg-white/10"
+                        :class="reportPagesOpen
+                        ? 'bg-slate-100 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10'
+                        : ''"
+                        @click="reportPagesOpen = !reportPagesOpen"
+                        type="button">
+                        <span class="opacity-90">
+                        <i class="fa-solid fa-sliders"></i>
+                        </span>
+                        <span class="text-sm font-medium flex-1">Reports</span>
+
+                        <svg
+                        class="h-4 w-4 transition-transform opacity-80"
+                        :class="reportPagesOpen ? 'rotate-180' : ''"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <div v-show="reportPagesOpen" class="mt-1 ml-6 mr-2 rounded-xl ring-1
+                            bg-slate-50 ring-slate-200
+                            dark:bg-black/20 dark:ring-white/10">
+                        <ul class="py-2">
                             <li>
                                 <button
                                 class="w-full px-4 py-2 text-sm text-left transition
                                         hover:bg-white dark:hover:bg-white/10"
-                                :class="activeKey === 'order_create'
+                                :class="activeKey === 'report_sale'
                                     ? 'bg-white text-slate-900 font-medium dark:bg-white/10 dark:text-white'
                                     : 'text-slate-700 dark:text-slate-200/90'"
-                                @click="pick('order_create')">
-                                Create
+                                @click="pick('report_sale')">
+                                Sale Report's
                                 </button>
                             </li>
                         </ul>
@@ -330,7 +372,7 @@ const routeMap = {
 
     orders: "/admin/orders",
     order_payment: "/admin/orders/payment",
-    order_create: "/admin/orders/create",
+
 
     payment: "/admin/payment",
 
@@ -385,7 +427,6 @@ const routeMatch = [
     { key: "create", prefixes: ["/admin/create-product"] },
     { key: "product_setting", prefixes: ["/admin/product/setting"] },
 
-    { key: "order_create", prefixes: ["/admin/orders/create"] },
     { key: "order_payment", prefixes: ["/admin/orders/payment"] },
     { key: "orders", prefixes: ["/admin/orders", "/admin/customer-details/"] },
 
@@ -516,7 +557,7 @@ watch(
 watch(
     () => activeKey.value,
     (k) => {
-        const orderKeys = ["orders", "order_payment", "sales", "order_create"];
+        const orderKeys = ["orders", "order_payment", "sales"];
         if (orderKeys.includes(k)) {
         orderPagesOpen.value = true;
         }
