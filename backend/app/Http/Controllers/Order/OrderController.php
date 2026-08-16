@@ -56,13 +56,44 @@ class OrderController extends Controller
         return $transactionId;
     }
 
-    public function index()
+    public function index(Request $request)
     {
         try{
-            $orders = Order::with(['user:id,name,user_id'])
-                ->where('order_date', today())
-                ->latest('id')
-                ->get();
+            $query = Order::query()->with('user');
+
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+
+            if ($request->filled('search')) {
+
+                $search = trim($request->search);
+
+                $query->where(function ($q) use ($search) {
+
+                    $q->where('reg', 'like', "%{$search}%")
+                    ->orWhere('status', 'like', "%{$search}%");
+
+                    // transaction_id column
+                    if (\Schema::hasColumn('orders', 'transaction_id')) {
+                        $q->orWhere('transaction_id', 'like', "%{$search}%");
+                    }
+
+                    $q->orWhereHas('user', function ($user) use ($search) {
+
+                        $user->where('name', 'like', "%{$search}%");
+
+                        // user_id column
+                        if (\Schema::hasColumn('users', 'user_id')) {
+                            $user->orWhere('user_id', 'like', "%{$search}%");
+                        }
+
+                    });
+
+                });
+            }
+
+            $orders = $query->latest()->paginate(20);
 
             return response()->json([
                 'success' => true,

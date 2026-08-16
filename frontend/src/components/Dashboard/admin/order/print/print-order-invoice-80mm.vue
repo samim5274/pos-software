@@ -81,7 +81,7 @@
 
         <!-- Payment Details (If available) -->
         <div class="payment-section" v-if="payment">
-            <div class="row"><span class="label">Txn Receipt:</span><span class="value">{{ payment.receipt_no ?? '-' }}</span></div>
+            <!-- <div class="row"><span class="label">Txn Receipt:</span><span class="value">{{ payment.receipt_no ?? '-' }}</span></div> -->
             <div class="row"><span class="label">Paid via:</span><span class="value">{{ getPaymentMethod(payment.payment_method)?.label ?? '-' }}</span></div>
         </div>
 
@@ -240,7 +240,7 @@ const triggerAutoPrintAndClose = () => {
         // Window close delay for browser safety
         setTimeout(() => {
             window.close();
-        }, 300);
+        }, 100);
     };
 
     window.onafterprint = () => safeClose();
@@ -254,7 +254,7 @@ const triggerAutoPrintAndClose = () => {
     setTimeout(() => {
         printed = true;
         window.print();
-    }, 500);
+    }, 100);
 
     // Hard fallback to close if something blocks print dialog
     setTimeout(() => {

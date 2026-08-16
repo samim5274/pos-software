@@ -227,7 +227,7 @@
                                                 <div class="inline-flex items-center p-1 rounded-xl bg-gray-100/80 dark:bg-gray-800/80 border border-gray-200/60 dark:border-gray-700/60 shadow-sm">
                                                     <!-- Print Button -->
                                                     <button
-                                                        type="button"
+                                                        type="button" @click.stop="printOrder(order)"
                                                         title="Print Order"
                                                         class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-gray-700 active:scale-95 transition-all duration-150"
                                                     >
@@ -275,6 +275,66 @@
                             </table>
                         </div>
                     </div>
+
+                    <!-- Pagination -->
+                    <div class="flex flex-col gap-2 border-slate-200 bg-white dark:bg-slate-900 shadow-sm px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <!-- Showing info -->
+                        <p class="text-xs text-slate-500">
+                            Showing
+                            <span class="font-semibold text-slate-700">{{ pagination.from }}</span>
+                            –
+                            <span class="font-semibold text-slate-700">{{ pagination.to }}</span>
+                            of
+                            <span class="font-semibold text-slate-700">{{ pagination.total }}</span>
+                        </p>
+
+                        <div class="flex flex-wrap items-center justify-end gap-2">
+                            <!-- First -->
+                            <button
+                                @click="changePage(1)" :disabled="pagination.page === 1 || loading"
+                                class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+                                <i class="fa-solid fa-angles-left"></i>
+                            </button>
+
+                            <!-- Prev -->
+                            <button
+                                @click="changePage(pagination.page - 1)" :disabled="pagination.page === 1 || loading"
+                                class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </button>
+
+                            <!-- Pages -->
+                            <button
+                                v-for="page in OrderVisiblePages"
+                                :key="String(page)"
+                                @click="page !== '...' && changePage(page)"
+                                class="rounded-lg border px-3 py-1.5 text-xs font-semibold"
+                                :disabled="page === '...' || loading"
+                                :class="[
+                                    page === pagination.page
+                                        ? 'border-slate-900 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
+                                        : 'border-slate-200 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-100 hover:bg-slate-50'
+                                ]">
+                                {{ page }}
+                            </button>
+
+                            <!-- Next -->
+                            <button
+                                @click="changePage(pagination.page + 1)"
+                                :disabled="pagination.page === pagination.lastPage || loading"
+                                class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+                                <i class="fa-solid fa-angle-right"></i>
+                            </button>
+
+                            <!-- Last -->
+                            <button
+                                @click="changePage(pagination.lastPage)"
+                                :disabled="pagination.page === pagination.lastPage || loading"
+                                class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+                                <i class="fa-solid fa-angles-right"></i>
+                            </button>
+                        </div>
+                    </div>
                     
 
                 </main>
@@ -285,7 +345,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed } from "vue";
+import { onMounted, ref, computed, watch } from "vue";
 import { useRouter } from 'vue-router'
 import api, {makeImg} from '../../../../services/api.js'
 
@@ -321,16 +381,112 @@ const loading = ref(false);
 // =============================
 // Get orders
 // =============================
+const OrderVisiblePages = computed(() => {
+    const pages = [];
+    const last = pagination.value.lastPage;
+    const cur = pagination.value.page;
+
+    if (last <= 5) {
+        for (let i = 1; i <= last; i++) pages.push(i);
+        return pages;
+    }
+
+    pages.push(1);
+
+    if (cur > 3) pages.push("...");
+
+    const start = Math.max(2, cur - 1);
+    const end = Math.min(last - 1, cur + 1);
+
+    for (let i = start; i <= end; i++) {
+        pages.push(i);
+    }
+
+    if (cur < last - 2) pages.push("...");
+
+    pages.push(last);
+
+    return pages;
+});
+
+
+
+const pagination = ref({
+    page: 1,
+    lastPage: 1,
+    total: 0,
+    perPage: 20,
+    from: 0,
+    to: 0,
+});
+
+
 const orders = ref([]);
-async function fetchOrders(){
+const searchQuery = ref('');
+const statusFilter = ref('');
+
+async function fetchOrders(page = 1){
     try{
-        const res = await api.get('/orders');
-        orders.value = res.data.data;
+        const res = await api.get('/orders', {
+            params: { 
+                page,
+                search: searchQuery.value.trim(),
+                status: statusFilter.value,
+            }
+        });
+        const response = res.data;
+
+        orders.value = response?.data?.data ?? [];
+
+        // PAGINATION META
+        pagination.value = {
+            page: response?.data?.current_page ?? 1,
+            lastPage: response?.data?.last_page ?? 1,
+            total: response?.data?.total ?? 0,
+            perPage: response?.data?.per_page ?? 20,
+            from: response?.data?.from ?? 0,
+            to: response?.data?.to ?? 0,
+        };
         // console.log(orders.value);
     } catch(err){
         errorMsg.value = err || "Something is wrong to fetched orders.";
+
+        orders.value = [];
+
+        pagination.value = {
+            page: 1,
+            lastPage: 1,
+            total: 0,
+            perPage: 20,
+            from: 0,
+            to: 0,
+        };
+
         console.log(err);
     }
+}
+
+let searchTimeout = null;
+watch(searchQuery, () => {
+    clearTimeout(searchTimeout);
+
+    searchTimeout = setTimeout(() => {
+        fetchOrders(1);
+    }, 500);
+});
+
+watch(statusFilter, () => {
+    fetchOrders(1);
+});
+
+const resetFilters = () => {
+    searchQuery.value = '';
+    statusFilter.value = '';
+    fetchOrders(1);
+};
+
+async function changePage(page) {
+    await fetchOrders(page);
 }
 
 const formatDate = (date) => new Date(date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -387,12 +543,6 @@ const getStatus = (status) => {
     return statusConfig[status.toLowerCase()] || statusConfig.default;
 };
 
-// =============================
-// Filter orders
-// =============================
-const searchQuery = ref('');
-const statusFilter = ref('');
-
 const filteredOrders = computed(() => {
     return orders.value.filter(order => {
         const matchesStatus = !statusFilter.value || 
@@ -409,10 +559,6 @@ const filteredOrders = computed(() => {
     });
 });
 
-const resetFilters = () => {
-    searchQuery.value = '';
-    statusFilter.value = '';
-};
 
 
 
@@ -431,6 +577,19 @@ function viewOrderDetails(order){
 
 
 
+
+// =============================
+// Print / Download invoice
+// =============================
+function printOrder(order) {
+    const win = window.open("about:blank", "_blank");
+    if(!win){
+        alert("Popup blocked! Allow popups.");
+        return;
+    }
+    // console.log(order)
+    win.location.href = `/admin/order/invoice-print/${order.reg}`;
+}
 
 
 

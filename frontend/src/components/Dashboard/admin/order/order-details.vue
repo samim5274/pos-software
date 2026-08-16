@@ -116,13 +116,13 @@
 
                             <div class="flex items-center gap-3">
 
-                                <button
+                                <!-- <button
                                     type="button" @click="downloadInvoice" :disabled="invoiceDownloading"
                                     class="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 transition shadow-sm"
                                 >
                                     <i class="fa-solid fa-download mr-1.5"></i>
                                     Download Invoice
-                                </button>
+                                </button> -->
 
                                 <button
                                     type="button"
@@ -1431,7 +1431,7 @@ function printOrder(order) {
         alert("Popup blocked! Allow popups.");
         return;
     }
-    console.log(order)
+    // console.log(order)
     win.location.href = `/admin/order/invoice-print/${order.reg}`;
 }
 

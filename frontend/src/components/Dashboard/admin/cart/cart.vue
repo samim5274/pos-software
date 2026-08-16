@@ -303,13 +303,9 @@
                                         <input type="text" id="customer_name" name="customer_name" v-model="form.customer_name" placeholder="Mr. Hossain"
                                             class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#16a34a] dark:focus:ring-[#f97316] focus:border-transparent transition-all" />
                                     </div>
-                                </div>
-
-                                <!-- Payment Input Form Fields -->
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white dark:bg-[#0F172E] p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                                    
+                                
                                     <!-- Payment Method Selection -->
-                                    <div class="space-y-1 md:col-span-2">
+                                    <div class="space-y-1 md:col-span-2 border-t border-slate-100 dark:border-slate-800 pt-2">
                                         <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
                                             Select Payment Method
                                         </label>
@@ -402,7 +398,7 @@
                                         </label>
                                         <div class="relative">
                                             <input
-                                                v-model.number="form.received_amount"
+                                                v-model.number="form.received_amount" @keydown.enter="handleCheckout"
                                                 type="number"
                                                 id="received_amount"
                                                 name="received_amount"
@@ -1255,6 +1251,14 @@ const handleCheckout = async () => {
         return;
     }
 
+    const confirmed = window.confirm(
+        `Are you sure you want to place this order?\n\nPayable Amount: ${Number(totalPayable.value).toFixed(2)}`
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
     const checkoutData = {
         customer_name: form.customer_name?.trim() || null,
         phone_number: form.phone_number?.trim() || null,
@@ -1280,6 +1284,13 @@ const handleCheckout = async () => {
         } else {
             errorMsg.value = res.data?.message || "Checkout failed.";
         }
+
+        const win = window.open("about:blank", "_blank");
+        if(!win){
+            alert("Popup Blocked! Allow popups");
+            return;
+        }
+        win.location.href = `/admin/order/invoice-print/${res.data.data.order.reg}`;
     } catch (error) {
         console.error("Checkout Error:", error);
         if (error.response) {
