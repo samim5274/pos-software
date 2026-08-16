@@ -22,6 +22,8 @@
             <div class="flex-1 min-w-0">
                 <main class="flex-1 min-h-screen min-w-0 bg-gray-50 dark:bg-[#0C1326] px-4 sm:px-6 lg:px-8 py-6">
 
+                    
+
                     <div class="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                         <div>
                             <div class="flex items-center gap-3">
@@ -97,12 +99,49 @@
                                 <!-- Table Body -->
                                 <tbody class="divide-y divide-slate-100 dark:divide-slate-800/50">
                                     
-                                    <!-- Loading State -->
-                                    <tr v-if="loading">
-                                        <td colspan="6" class="px-6 py-20 text-center">
-                                            <div class="flex flex-col items-center justify-center gap-2">
-                                                <div class="h-6 w-6 rounded-full border-2 border-indigo-600/20 dark:border-indigo-400/20 border-t-indigo-600 dark:border-t-indigo-400 animate-spin"></div>
-                                                <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 tracking-wide">Syncing daily orders...</p>
+                                    <!-- Skeleton Loading State -->
+                                    <tr v-if="loading" v-for="n in 5" :key="'skeleton-' + n" class="animate-pulse">
+                                        <!-- Order / Reg Skeleton -->
+                                        <td class="pl-5 pr-4 py-3">
+                                            <div class="h-3.5 w-20 bg-slate-200 dark:bg-slate-700/60 rounded"></div>
+                                            <div class="h-2.5 w-14 bg-slate-100 dark:bg-slate-800 rounded mt-1.5"></div>
+                                        </td>
+
+                                        <!-- Customer & Contact Skeleton -->
+                                        <td class="px-4 py-3">
+                                            <div class="flex items-center gap-2.5">
+                                                <div class="h-7 w-7 rounded bg-slate-200 dark:bg-slate-700/60 shrink-0"></div>
+                                                <div class="space-y-1.5 flex-1">
+                                                    <div class="h-3 w-28 bg-slate-200 dark:bg-slate-700/60 rounded"></div>
+                                                    <div class="h-2.5 w-20 bg-slate-100 dark:bg-slate-800 rounded"></div>
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        <!-- Timeline & Points Skeleton -->
+                                        <td class="px-4 py-3">
+                                            <div class="h-3 w-20 bg-slate-200 dark:bg-slate-700/60 rounded mb-1.5"></div>
+                                            <div class="h-4 w-12 bg-slate-100 dark:bg-slate-800 rounded-full"></div>
+                                        </td>
+
+                                        <!-- Payment Gateway Skeleton -->
+                                        <td class="px-4 py-3">
+                                            <div class="h-3 w-16 bg-slate-200 dark:bg-slate-700/60 rounded"></div>
+                                            <div class="h-2.5 w-14 bg-slate-100 dark:bg-slate-800 rounded mt-1.5"></div>
+                                        </td>
+
+                                        <!-- Financials Skeleton -->
+                                        <td class="px-4 py-3 text-right">
+                                            <div class="h-3.5 w-16 bg-slate-200 dark:bg-slate-700/60 rounded ml-auto"></div>
+                                            <div class="h-2.5 w-12 bg-slate-100 dark:bg-slate-800 rounded ml-auto mt-1.5"></div>
+                                        </td>
+
+                                        <!-- Actions Skeleton -->
+                                        <td class="pl-4 pr-5 py-3 text-center">
+                                            <div class="inline-flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50 gap-1.5">
+                                                <div class="h-6 w-6 rounded-lg bg-slate-200 dark:bg-slate-700/60"></div>
+                                                <div class="h-6 w-6 rounded-lg bg-slate-200 dark:bg-slate-700/60"></div>
+                                                <div class="h-6 w-6 rounded-lg bg-slate-200 dark:bg-slate-700/60"></div>
                                             </div>
                                         </td>
                                     </tr>
@@ -246,16 +285,16 @@
                                                         <i class="fa-solid fa-pencil text-xs"></i>
                                                     </button>
 
-                                                    <!-- Divider Line -->
+                                                    <!-- Return Line -->
                                                     <div class="w-[1px] h-4 bg-gray-200 dark:bg-gray-700 mx-0.5"></div>
 
-                                                    <!-- Delete Button -->
+                                                    <!-- Return Button -->
                                                     <button
-                                                        type="button"
-                                                        title="Delete Order"
+                                                        type="button" @click.stop="returnOrder(order)"
+                                                        title="Return Order"
                                                         class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-500 dark:text-gray-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-white dark:hover:bg-gray-700 active:scale-95 transition-all duration-150"
                                                     >
-                                                        <i class="fa-solid fa-trash text-xs"></i>
+                                                        <i class="fa-solid fa-arrow-rotate-left text-xs"></i>
                                                     </button>
                                                 </div>
                                             </td>
@@ -426,6 +465,7 @@ const searchQuery = ref('');
 const statusFilter = ref('');
 
 async function fetchOrders(page = 1){
+    loading.value = true;
     try{
         const res = await api.get('/orders', {
             params: { 
@@ -463,6 +503,8 @@ async function fetchOrders(page = 1){
         };
 
         console.log(err);
+    } finally {
+        loading.value = false;
     }
 }
 
@@ -591,6 +633,46 @@ function printOrder(order) {
     win.location.href = `/admin/order/invoice-print/${order.reg}`;
 }
 
+
+
+
+
+
+
+
+
+
+// =============================
+// Return invoice
+// =============================
+async function returnOrder(order) {
+    loading.value = true;
+
+    const confirmed = window.confirm(
+        `Are you sure you want to return this order?`
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try{
+        const res = await api.post(`/orders/return/${order.reg}/${order.slug}/${order.id}`);
+        if (res.data?.success) {
+            successMsg.value = res.data?.message || "Order returned successfully.";
+            errorMsg.value = "";
+        } else {
+            errorMsg.value = res.data?.message || "Failed to return order.";
+            successMsg.value = "";
+        }
+        await fetchOrders();
+    } catch(err){
+        errorMsg.value = err || "Something is wrong to return orders.";
+        console.log(err);
+    } finally {
+        loading.value = false;
+    }
+}
 
 
 

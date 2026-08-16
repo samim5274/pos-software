@@ -206,4 +206,9 @@ class OrderPayment extends Model
     {
         return $this->belongsTo(User::class, 'received_by');
     }
+
+    public function returnedBy()
+    {
+        return $this->belongsTo(User::class, 'returned_by');
+    }
 }

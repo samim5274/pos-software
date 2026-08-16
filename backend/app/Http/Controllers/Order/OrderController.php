@@ -108,6 +108,169 @@ class OrderController extends Controller
         }
     }
 
+    public function orderReturn(Request $request, $reg, $slug, $id)
+    {
+        try {
+
+            $result = DB::transaction(function () use ($request, $reg, $slug, $id) {
+
+                $order = Order::query()->where('id', $id)->where('reg', $reg)->where('slug', $slug)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$order) {
+                    throw ValidationException::withMessages([
+                        'order' => ['Order not found.'],
+                    ]);
+                }
+
+                if ($order->status === Order::STATUS_RETURNED) {
+                    throw ValidationException::withMessages([
+                        'order' => ['This order has already been returned.'],
+                    ]);
+                }
+
+                $returnableStatuses = [
+                    Order::STATUS_COMPLETED,
+                    Order::STATUS_PARTIALLY_PAID,
+                    Order::STATUS_UNPAID,
+                ];
+
+                if (!in_array($order->status, $returnableStatuses, true)) {
+                    throw ValidationException::withMessages([
+                        'order' => [
+                            "Order with status '{$order->status}' cannot be returned."
+                        ],
+                    ]);
+                }
+
+                $payments = OrderPayment::query()->where('order_id', $order->id)->where('payment_type', OrderPayment::TYPE_PAYMENT)
+                    ->lockForUpdate()
+                    ->get();
+
+                /*
+                |--------------------------------------------------------------------------
+                | Calculate total paid
+                |--------------------------------------------------------------------------
+                */
+                $totalPaid = round((float) $payments->sum('amount'), 2);
+
+                /*
+                |--------------------------------------------------------------------------
+                | Calculate refund
+                |--------------------------------------------------------------------------
+                */
+                $refundAmount = min($totalPaid,(float) $order->payable_amount);
+
+                /*
+                |--------------------------------------------------------------------------
+                | Update order
+                |--------------------------------------------------------------------------
+                */
+                $order->update([
+                    'status'      => Order::STATUS_RETURNED,
+                    'returned_at' => now(),
+                    'returned_by' => auth()->id(),
+                ]);
+
+                /*
+                |--------------------------------------------------------------------------
+                | Create refund payment
+                |--------------------------------------------------------------------------
+                |
+                | Do NOT change original payment_type from "payment"
+                | to "refund". Keep the payment history intact.
+                |
+                */
+                $refundPayment = null;
+
+                if ($refundAmount > 0) {
+
+                    $paymentMethod = $payments->first()?->payment_method
+                        ?? $order->payment_method;
+
+                    $refundPayment = OrderPayment::create([
+                        'order_id'      => $order->id,
+                        'user_id'       => auth()->id(),
+                        'customer_id'   => $order->customer_id,
+
+                        'payment_number' => 'REF-' . now()->format('YmdHis') . '-' . $order->id,
+                        'receipt_no'     => null,
+
+                        'payment_type'   => OrderPayment::TYPE_REFUND,
+                        'payment_method' => $paymentMethod,
+
+                        'amount'        => $refundAmount,
+                        'currency'      => $order->currency ?? Order::CURRENCY_BDT,
+
+                        'paid_at'       => now(),
+
+                        'verified_by'   => auth()->id(),
+                        'verified_at'   => now(),
+
+                        'remarks'       => 'Refund for returned order ' . $order->order_number,
+
+                        'ip_address'    => $request->ip(),
+                        'user_agent'    => $request->userAgent(),
+                    ]);
+                }
+
+                return [
+                    'order'         => $order->fresh(),
+                    'refund'        => $refundPayment,
+                    'total_paid'    => $totalPaid,
+                    'refund_amount' => $refundAmount,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order returned successfully.',
+                'data' => $result,
+            ], 200);
+
+        } catch (ValidationException $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'errors'  => $e->errors(),
+            ], 422);
+
+        } catch (\Throwable $e) {
+
+            Log::error('ORDER RETURN ERROR', [
+                'order_id' => $id,
+                'reg'      => $reg,
+                'slug'     => $slug,
+                'user_id'  => auth()->id(),
+
+                'message'  => $e->getMessage(),
+                'line'     => $e->getLine(),
+                'file'     => $e->getFile(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to return the order. Please try again later.',
+            ], 500);
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     public function statusFilter(Request $request)
     {
         try{
