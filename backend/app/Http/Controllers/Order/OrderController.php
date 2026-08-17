@@ -600,15 +600,14 @@ class OrderController extends Controller
     public function reportSale()
     {
         try{
-            $orders = Order::with('user')->latest()->paginate(20);
-
-            $totalAmount = Order::sum('amount');
+            $orders = Order::with('user:id,user_id,name,email')
+                ->where('order_date', today())
+                ->latest()->paginate(20);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Orders fetched successfully.',
                 'data' => $orders,
-                'total_amount' => (float) $totalAmount,
             ], 200);
         } catch (\Throwable $e) {
             return response()->json([
@@ -630,9 +629,7 @@ class OrderController extends Controller
             $startDate = $request->start_date ?? now()->startOfDay()->toDateString();
             $endDate   = $request->end_date ?? now()->endOfDay()->toDateString();
 
-            $query = Order::whereBetween('date', [$startDate, $endDate]);
-
-            $totalAmount = (clone $query)->sum('amount');
+            $query = Order::whereBetween('order_date', [$startDate, $endDate]);
 
             $orders = $query->with('user:id,user_id,name,email')
                 ->latest()
@@ -642,7 +639,6 @@ class OrderController extends Controller
                 'success' => true,
                 'message' => 'Orders fetched successfully.',
                 'data'    => $orders,
-                'total_amount' => (float) $totalAmount,
             ], 200);
         } catch (\Throwable $e) {
 
@@ -653,6 +649,135 @@ class OrderController extends Controller
             ], 500);
         }
     }
+
+    public function reportPayment()
+    {
+        try {
+            $query = OrderPayment::with([
+                'user:id,user_id,name,email',
+                'order',
+                'verifier',
+                'receiver',
+                'returnedBy',
+            ])
+            ->whereDate('paid_at', today());
+
+            // Total amount from ALL today's payments
+            $totalAmount = (clone $query)->sum('amount');
+
+            // Paginated records
+            $orderPayment = $query
+                ->latest('id')
+                ->paginate(20);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment report fetched successfully.',
+                'data' => $orderPayment,
+                'total_amount' => round((float) $totalAmount, 2),
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            \Log::error('PAYMENT REPORT ERROR', [
+                'user_id' => auth()->id(),
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch payment report. Please try again later.',
+            ], 500);
+        }
+    }
+
+    public function reportPaymentFilter(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'start_date' => ['nullable','date','date_format:Y-m-d',],
+                'end_date' => ['nullable','date','date_format:Y-m-d','after_or_equal:start_date',],
+                'page' => ['nullable','integer','min:1',],
+                'per_page' => ['nullable','integer','min:1','max:100',
+                ],
+            ]);
+
+
+            $startDate = $validated['start_date'] ?? now()->toDateString();
+            $endDate = $validated['end_date'] ?? now()->toDateString();
+            $perPage = (int) ($validated['per_page'] ?? 20);
+
+
+            $query = OrderPayment::query()
+                ->with([
+                    'user:id,user_id,name,email',
+                    'order:id,reg,slug,order_number,customer_name,customer_phone,payable_amount',
+                    'verifier:id,user_id,name,email',
+                    'receiver:id,user_id,name,email',
+                    'returnedBy:id,user_id,name,email',
+                ])
+                ->whereBetween('paid_at', [
+                    $startDate . ' 00:00:00',
+                    $endDate . ' 23:59:59',
+                ]);
+
+            $payments = $query->latest('paid_at')->latest('id')->paginate($perPage)->withQueryString();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment report fetched successfully.',
+                'data' => $payments,
+            ], 200);
+
+        } catch (ValidationException $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid filter parameters.',
+                'errors' => $e->errors(),
+            ], 422);
+
+        } catch (\Throwable $e) {
+
+            Log::error('PAYMENT REPORT FILTER ERROR', [
+                'user_id' => auth()->id(),
+                'start_date' => $request->input('start_date'),
+                'end_date' => $request->input('end_date'),
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch payment report. Please try again later.',
+            ], 500);
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     public function verifyPayment(Request $request, int $paymentId): JsonResponse
     {

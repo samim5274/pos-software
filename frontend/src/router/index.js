@@ -44,6 +44,14 @@ const OrderPayment = () => import('../components/Dashboard/admin/order/order-pay
 
 
 
+const SaleReport = () => import('../components/Dashboard/admin/reports/report-sale.vue');
+const PaymentReport = () => import('../components/Dashboard/admin/reports/report-payment.vue');
+
+
+
+
+
+
 
 
 const C_Notice = () => import('../components/Dashboard/admin/notice/notice.vue');
@@ -105,8 +113,12 @@ const routes = [
     { path: '/admin/orders', component: OrderList, meta: { requiresAuth: true, roles: ['admin', 'super_admin', 'staff'], title: "Order List - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" } },
     { path: '/admin/orders/:reg/:slug', component: OrderDetails, meta: { requiresAuth: true, roles: ['admin', 'super_admin', 'staff'], title: "Order Details - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" } },
     // Print invoice
-    { path: '/admin/order/invoice-print/:reg', component: PrintInvoice, meta: {requiresAuth: true, roles: ['admin', 'super_admin'], title: "Print Order Details"}},
-    { path: '/admin/orders/payment', component: OrderPayment, meta: {requiresAuth: true, roles: ['admin', 'super_admin'], title: "Order Payment Details"}},
+    { path: '/admin/order/invoice-print/:reg', component: PrintInvoice, meta: {requiresAuth: true, roles: ['admin', 'super_admin', 'staff'], title: "Print Order Details"}},
+    { path: '/admin/orders/payment', component: OrderPayment, meta: {requiresAuth: true, roles: ['admin', 'super_admin', 'staff'], title: "Order Payment Details"}},
+
+    // Sale Report
+    { path: '/admin/reports/sale', component: SaleReport, meta: {requiresAuth: true, roles: ['admin', 'super_admin', 'staff'], title: "Sale Reports"}},
+    { path: '/admin/reports/payment', component: PaymentReport, meta: {requiresAuth: true, roles: ['admin', 'super_admin', 'staff'], title: "Payments Reports"}},
 
 
 

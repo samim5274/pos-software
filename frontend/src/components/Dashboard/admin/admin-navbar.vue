@@ -251,6 +251,18 @@
                                 Sale Report's
                                 </button>
                             </li>
+
+                            <li>
+                                <button
+                                class="w-full px-4 py-2 text-sm text-left transition
+                                        hover:bg-white dark:hover:bg-white/10"
+                                :class="activeKey === 'report_payment'
+                                    ? 'bg-white text-slate-900 font-medium dark:bg-white/10 dark:text-white'
+                                    : 'text-slate-700 dark:text-slate-200/90'"
+                                @click="pick('report_payment')">
+                                Payment Report's
+                                </button>
+                            </li>
                         </ul>
                     </div>
                 </li>
@@ -258,6 +270,65 @@
 
 
 
+
+
+
+
+                <li>
+                    <button
+                        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition
+                            focus:outline-none focus:ring-2 focus:ring-slate-500/40
+                            hover:bg-slate-100 dark:hover:bg-white/10"
+                        :class="expensesPagesOpen
+                        ? 'bg-slate-100 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10'
+                        : ''"
+                        @click="expensesPagesOpen = !expensesPagesOpen"
+                        type="button">
+                        <span class="opacity-90">
+                        <i class="fa-solid fa-hand-holding-dollar"></i>
+                        </span>
+                        <span class="text-sm font-medium flex-1">Expenses</span>
+
+                        <svg
+                        class="h-4 w-4 transition-transform opacity-80"
+                        :class="expensesPagesOpen ? 'rotate-180' : ''"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <div v-show="expensesPagesOpen" class="mt-1 ml-6 mr-2 rounded-xl ring-1
+                            bg-slate-50 ring-slate-200
+                            dark:bg-black/20 dark:ring-white/10">
+                        <ul class="py-2">
+                            <li>
+                                <button
+                                class="w-full px-4 py-2 text-sm text-left transition
+                                        hover:bg-white dark:hover:bg-white/10"
+                                :class="activeKey === 'expenses'
+                                    ? 'bg-white text-slate-900 font-medium dark:bg-white/10 dark:text-white'
+                                    : 'text-slate-700 dark:text-slate-200/90'"
+                                @click="pick('expenses')">
+                                Expenses
+                                </button>
+                            </li>
+                            
+                            <li>
+                                <button
+                                class="w-full px-4 py-2 text-sm text-left transition
+                                        hover:bg-white dark:hover:bg-white/10"
+                                :class="activeKey === 'expensesSetting'
+                                    ? 'bg-white text-slate-900 font-medium dark:bg-white/10 dark:text-white'
+                                    : 'text-slate-700 dark:text-slate-200/90'"
+                                @click="pick('expensesSetting')">
+                                Expenses Setting
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
 
 
 
@@ -351,6 +422,7 @@ const pagesOpen = ref(false);
 const userPagesOpen = ref(false);
 const orderPagesOpen = ref(false);
 const reportPagesOpen = ref(false);
+const expensesPagesOpen = ref(false);
 
 
 
@@ -373,31 +445,14 @@ const routeMap = {
     orders: "/admin/orders",
     order_payment: "/admin/orders/payment",
 
-
-    payment: "/admin/payment",
-
-    users: "/admin/users",
-    assignUserToTree: "/admin/assign-user-tree",
-    userSetting: "/admin/user-setting",
-
     // reports
     report_sale: "/admin/reports/sale",
-    report_order: "/admin/reports/order",
-    report_product_sale: "/admin/reports/product/sale",
-    report_products: "/admin/reports/products",
-    report_statement: "/admin/reports/statement",
-    report_ranking: "/admin/reports/ranking",
-    report_star_club: "/admin/reports/star-club",
-    report_dynamic_club: "/admin/reports/dynamic-club",
-
-    report_stock: "/admin/reports/stock",
     report_payment: "/admin/reports/payment",
-    report_user: "/admin/reports/user",
-    report_reference: "/admin/reports/reference",
 
 
-    // Notice
+    // Others
     notice: "/admin/notice",
+    expenses: "/admin/expenses",
 
     setting: "/admin/setting",
     logout: "/login",
@@ -430,28 +485,12 @@ const routeMatch = [
     { key: "order_payment", prefixes: ["/admin/orders/payment"] },
     { key: "orders", prefixes: ["/admin/orders", "/admin/customer-details/"] },
 
-    { key: "payment", prefixes: ["/admin/payment"]},
-
-    { key: "users", prefixes: ["/admin/users"] },
-    { key: "assignUserToTree", prefixes: ["/admin/assign-user-tree"] },
-    { key: "userSetting", prefixes: ["/admin/user-setting"] },
-
     { key: "report_sale", prefixes: ["/admin/reports/sale"] },
-    { key: "report_order", prefixes: ["/admin/reports/order"] },
-    { key: "report_product_sale", prefixes: ["/admin/reports/product/sale"] },
-    { key: "report_products", prefixes: ["/admin/reports/products"] },
-    { key: "report_statement", prefixes: ["/admin/reports/statement"] },
-    { key: "report_star_club", prefixes: ["/admin/reports/star-club"] },
-    { key: "report_dynamic_club", prefixes: ["/admin/reports/dynamic-club"] },
-
-    { key: "report_stock", prefixes: ["/admin/reports/stock"] },
-    { key: "report_ranking", prefixes: ["/admin/reports/ranking"] },
     { key: "report_payment", prefixes: ["/admin/reports/payment"] },
-    { key: "report_user", prefixes: ["/admin/reports/user"] },
-    { key: "report_reference", prefixes: ["/admin/reports/reference"] },
 
 
     { key: "notice", prefixes: ["/admin/notice"] },
+    { key: "expenses", prefixes: ["/admin/expenses"] },
 
     { key: "logout", prefixes: ["/logout"] },
 ];

@@ -316,10 +316,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Route::patch('/delivery-charge-payments/{id}/status', [OrderController::class, 'deliveryStatusUpdate']);
 
-        // Route::prefix('reports')->group(function(){
-        //     Route::get('/sale', [OrderController::class, 'reportSale']);
-        //     Route::get('/sale/filter', [OrderController::class, 'reportSaleFilter']);
-        // });
+        Route::prefix('reports')->group(function(){
+            Route::get('/sale', [OrderController::class, 'reportSale']);
+            Route::get('/sale/filter', [OrderController::class, 'reportSaleFilter']);
+
+            Route::get('/payment', [OrderController::class, 'reportPayment']);
+            Route::get('/payment/filter', [OrderController::class, 'reportPaymentFilter']);
+        });
 
         // Route::get('/user/details', [EcommerceProductController::class, 'userOrderDetails']);
 
