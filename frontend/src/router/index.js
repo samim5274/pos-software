@@ -66,6 +66,17 @@ const C_Notice_details = () => import('../components/Dashboard/admin/notice/cust
 
 
 
+const Expenses = () => import('../components/Dashboard/admin/Expense/expense-overview.vue');
+
+
+
+
+
+
+
+
+
+
 
 
 const routes = [
@@ -129,8 +140,19 @@ const routes = [
 
 
 
-    { path: '/admin/notice', component: C_Notice, meta:{title: 'Notice', requiresAuth: true, roles: ['customer', 'admin', 'super_admin']}},
-    { path: '/admin/notice/:id/details', component: C_Notice_details, meta:{title: 'Notice Details', requiresAuth: true, roles: ['customer', 'admin', 'super_admin']}},
+    { path: '/admin/notice', component: C_Notice, meta:{title: 'Notice', requiresAuth: true, roles: ['staff', 'admin', 'super_admin']}},
+    { path: '/admin/notice/:id/details', component: C_Notice_details, meta:{title: 'Notice Details', requiresAuth: true, roles: ['staff', 'admin', 'super_admin']}},
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    { path: '/admin/expenses', component: Expenses, meta:{title: 'Expenses', requiresAuth: true, roles: ['staff', 'admin', 'super_admin']}},
 
 ]
 
