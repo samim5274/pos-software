@@ -375,8 +375,10 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('expenses')->group(function () {
         Route::get('/', [ExpensesController::class, 'index']);
+        Route::post('/', [ExpensesController::class, 'store']);
         Route::get('/category', [ExpensesController::class, 'getExCategory']);
         Route::get('/sub-category', [ExpensesController::class, 'getExSubCategory']);
+        Route::get('/print/{id}', [ExpensesController::class, 'printExpenses']);
     });
 });
 

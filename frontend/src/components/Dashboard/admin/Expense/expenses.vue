@@ -66,21 +66,161 @@
 
 
                     
-                    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
                         <div class="overflow-x-auto max-h-[850px] scrollbar-thin">
                             <table class="w-full text-left border-collapse whitespace-nowrap">
                                 <!-- Table Header -->
                                 <thead class="bg-slate-50/80 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800 sticky top-0 backdrop-blur-md z-10">
                                     <tr>
-                                        <th class="pl-5 pr-4 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest w-[14%]">Order / Reg</th>
-                                        <th class="px-4 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest w-[26%]">Customer & Contact</th>
-                                        <th class="px-4 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest w-[16%]">Timeline</th>
-                                        <th class="px-4 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest w-[16%]">Payment & Gateway</th>
-                                        <th class="px-4 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest w-[14%] text-right">Financials (BDT)</th>
-                                        <th class="pl-4 pr-5 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest w-[14%] text-center">Action</th>
+                                        <th class="pl-5 pr-4 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                                            #ID & Date
+                                        </th>
+                                        <th class="px-4 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                                            Expense & Details
+                                        </th>
+                                        <th class="px-4 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                                            Category / Subcategory
+                                        </th>
+                                        <th class="px-4 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                                            Created By
+                                        </th>
+                                        <th class="px-4 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-right">
+                                            Amount (BDT)
+                                        </th>
+                                        <th class="pl-4 pr-5 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center">
+                                            Action
+                                        </th>
                                     </tr>
                                 </thead>
 
+                                <tr v-if="loading" v-for="i in 5" :key="i" class="animate-pulse border-b border-slate-100 dark:border-slate-800">
+                                    <td class="pl-5 pr-4 py-4">
+                                        <div class="h-3.5 bg-slate-200 dark:bg-slate-700 rounded-md w-24 mb-1.5"></div>
+                                        <div class="h-2.5 bg-slate-100 dark:bg-slate-800 rounded-md w-16"></div>
+                                    </td>
+                                    <td class="px-4 py-4">
+                                        <div class="h-3.5 bg-slate-200 dark:bg-slate-700 rounded-md w-40 mb-1.5"></div>
+                                        <div class="h-2.5 bg-slate-100 dark:bg-slate-800 rounded-md w-28"></div>
+                                    </td>
+                                    <td class="px-4 py-4">
+                                        <div class="h-6 bg-slate-200 dark:bg-slate-700 rounded-lg w-20"></div>
+                                    </td>
+                                    <td class="px-4 py-4">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700"></div>
+                                            <div class="h-3 bg-slate-200 dark:bg-slate-700 rounded-md w-20"></div>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-4 text-right">
+                                        <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded-md w-16 ml-auto"></div>
+                                    </td>
+                                    <td class="pl-4 pr-5 py-4 text-center">
+                                        <div class="h-6 bg-slate-200 dark:bg-slate-700 rounded-lg w-12 mx-auto"></div>
+                                    </td>
+                                </tr>
+
+                                <!-- Table Body -->
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs sm:text-sm">
+                                    <!-- Loop Expenses -->
+                                    <tr 
+                                        v-for="expense in expenses" 
+                                        :key="expense.id"
+                                        class="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors"
+                                    >
+                                        <!-- ID & Date -->
+                                        <td class="pl-5 pr-4 py-3.5">
+                                            <div class="font-bold text-slate-900 dark:text-slate-100">
+                                                #EXP-{{ expense.id }}
+                                            </div>
+                                            <div class="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
+                                                <i class="fa-regular fa-calendar text-[10px]"></i>
+                                                <span>{{ expense.date }}</span>
+                                            </div>
+                                        </td>
+
+                                        <!-- Title & Remark -->
+                                        <td class="px-4 py-3.5 max-w-xs">
+                                            <div class="font-semibold text-slate-800 dark:text-slate-200 truncate" :title="expense.title">
+                                                {{ expense.title }}
+                                            </div>
+                                            <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5" :title="expense.remark">
+                                                <span class="font-medium">Remark:</span> {{ expense.remark || 'N/A' }}
+                                            </div>
+                                        </td>
+
+                                        <!-- Category & Subcategory -->
+                                        <td class="px-4 py-3.5">
+                                            <div class="flex flex-col gap-0.5">
+                                                <!-- Main Category -->
+                                                <div class="font-bold text-xs text-indigo-600 dark:text-indigo-400 tracking-wide uppercase">
+                                                    {{ expense.category?.name || 'N/A' }}
+                                                </div>
+                                                <!-- Subcategory -->
+                                                <div v-if="expense.subcategory?.name" class="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                                    <span class="w-1 h-1 rounded-full bg-slate-400 dark:bg-slate-500"></span>
+                                                    <span>{{ expense.subcategory.name }}</span>
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        <!-- Created By (User) -->
+                                        <td class="px-4 py-3.5">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center text-[10px] font-bold">
+                                                    {{ expense.user?.name ? expense.user.name.charAt(0) : 'U' }}
+                                                </div>
+                                                <span class="text-slate-700 dark:text-slate-300 font-medium">
+                                                    {{ expense.user?.name || 'N/A' }}
+                                                </span>
+                                            </div>
+                                        </td>
+
+                                        <!-- Amount -->
+                                        <td class="px-4 py-3.5 text-right font-bold text-slate-900 dark:text-slate-100">
+                                            ৳{{ Number(expense.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                        </td>
+
+                                        <!-- Action Buttons -->
+                                        <td class="pl-4 pr-5 py-3.5 text-center">
+                                            <div class="flex items-center justify-center gap-1.5">
+                                                <button 
+                                                    @click="editExpense(expense)"
+                                                    type="button"
+                                                    class="p-1.5 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                                                    title="Edit Expense"
+                                                >
+                                                    <i class="fa-solid fa-pen-to-square text-xs sm:text-sm"></i>
+                                                </button>
+                                                <button 
+                                                    @click="printExpense(expense)"
+                                                    type="button"
+                                                    class="p-1.5 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                                                    title="Edit Expense"
+                                                >
+                                                    <i class="fa-solid fa-print text-xs sm:text-sm"></i>
+                                                </button>
+                                                <button 
+                                                    @click="deleteExpense(expense.id)"
+                                                    type="button"
+                                                    class="p-1.5 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                                                    title="Delete Expense"
+                                                >
+                                                    <i class="fa-solid fa-trash-can text-xs sm:text-sm"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Empty State -->
+                                    <tr v-if="expenses.length === 0">
+                                        <td colspan="6" class="px-6 py-12 text-center text-slate-400 dark:text-slate-500">
+                                            <div class="flex flex-col items-center justify-center gap-2">
+                                                <i class="fa-solid fa-receipt text-3xl text-slate-300 dark:text-slate-600"></i>
+                                                <p class="text-sm font-medium">No expenses found.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
                             </table>
                         </div>
                     </div>
@@ -218,49 +358,29 @@
                                     </p>
                                 </div>
 
-                                <!-- Date + Amount -->
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <!-- Date -->
-                                    <div>
-                                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
-                                            Expense Date <span class="text-rose-500">*</span>
-                                        </label>
+                                <!-- Amount -->
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                                        Amount <span class="text-rose-500">*</span>
+                                    </label>
+                                    <div class="relative">
+                                        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-semibold text-sm pointer-events-none">
+                                            ৳
+                                        </span>
                                         <input
-                                            v-model="expenseForm.date"
-                                            type="date"
-                                            class="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 dark:border-slate-700/80 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:focus:border-indigo-500 dark:focus:bg-slate-800 dark:focus:ring-indigo-500/20"
-                                            :class="{ '!border-rose-500 focus:!ring-rose-500/10': expenseErrors.date }"
+                                            v-model="expenseForm.amount"
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            placeholder="0.00"
+                                            class="w-full pl-8 pr-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 dark:border-slate-700/80 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:focus:border-indigo-500 dark:focus:bg-slate-800 dark:focus:ring-indigo-500/20"
+                                            :class="{ '!border-rose-500 focus:!ring-rose-500/10': expenseErrors.amount }"
                                         />
-                                        <p v-if="expenseErrors.date" class="text-xs text-rose-500 mt-1.5 flex items-center gap-1">
-                                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
-                                            {{ expenseErrors.date[0] }}
-                                        </p>
                                     </div>
-
-                                    <!-- Amount -->
-                                    <div>
-                                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
-                                            Amount <span class="text-rose-500">*</span>
-                                        </label>
-                                        <div class="relative">
-                                            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-semibold text-sm pointer-events-none">
-                                                ৳
-                                            </span>
-                                            <input
-                                                v-model="expenseForm.amount"
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                placeholder="0.00"
-                                                class="w-full pl-8 pr-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 dark:border-slate-700/80 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:focus:border-indigo-500 dark:focus:bg-slate-800 dark:focus:ring-indigo-500/20"
-                                                :class="{ '!border-rose-500 focus:!ring-rose-500/10': expenseErrors.amount }"
-                                            />
-                                        </div>
-                                        <p v-if="expenseErrors.amount" class="text-xs text-rose-500 mt-1.5 flex items-center gap-1">
-                                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
-                                            {{ expenseErrors.amount[0] }}
-                                        </p>
-                                    </div>
+                                    <p v-if="expenseErrors.amount" class="text-xs text-rose-500 mt-1.5 flex items-center gap-1">
+                                        <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                                        {{ expenseErrors.amount[0] }}
+                                    </p>
                                 </div>
 
                                 <!-- Remark -->
@@ -316,7 +436,7 @@
 <script setup>
 import { ref, reactive, onMounted, computed, watch } from "vue";
 import { useRouter } from 'vue-router'
-import api, {makeImg} from '../../../../services/api.js'
+import api from '../../../../services/api.js'
 
 import Navbar from "../../admin/admin-navbar.vue";
 import HeaderSection from "../../admin/admin-header.vue";
@@ -412,6 +532,17 @@ const pagination = ref({
 });
 
 
+
+
+
+
+
+
+
+
+
+
+
 const expenses = ref([]);
 const categories = ref([]);
 const subcategories = ref([]);
@@ -448,7 +579,7 @@ async function fetchExpenses(page = 1){
             from: expensePagination?.from ?? 0,
             to: expensePagination?.to ?? 0,
         };
-        // console.log(subcategories.value);
+        // console.log(expenses.value);
     } catch(err){
         console.error('Fetch expenses error:', err);
 
@@ -536,17 +667,13 @@ async function createExpense() {
             category_id: expenseForm.category_id,
             sub_category_id: expenseForm.sub_category_id || null,
             title: expenseForm.title,
-            date: expenseForm.date,
             amount: expenseForm.amount,
             remark: expenseForm.remark || null,
         };
 
         const res = await api.post('/expenses', payload);
-
-        console.log(res.data);
-
         isExpenseModalOpen.value = false;
-
+        successMsg.value = res.data.message;
         // Expense list refresh
         await fetchExpenses(pagination.value.page);
 
@@ -567,6 +694,40 @@ async function createExpense() {
         savingExpense.value = false;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function printExpense(expense){
+    if (!expense) return;
+    
+    const win = window.open("about:blank", "_blank");
+
+    if (!win) {
+        alert("Popup blocked!");
+        return;
+    }
+
+    const url = `/admin/expenses/print/${expense.id}`;
+    console.log("button clicked", url);
+
+    win.location.href = url;
+    win.focus();
+}
+
+
 
 
 
