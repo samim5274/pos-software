@@ -24,15 +24,41 @@
 
                     
 
-                    <div class="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                        <div>
-                            <div class="flex items-center gap-3">
-                                <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Expenses Management</h1>
-                                <span class="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20">
-                                    0 Orders
+                    <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <!-- Title & Subtitle Section -->
+                        <div class="flex items-start gap-3.5">
+                            <!-- Icon Badge -->
+                            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 shadow-xs dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20">
+                                <i class="fa-solid fa-wallet text-lg"></i>
+                            </div>
+
+                            <div>
+                                <div class="flex items-center gap-2.5">
+                                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                                        Expense Management
+                                    </h1>
+                                    
+                                    <!-- Dynamic Count Badge -->
+                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700 border border-slate-200/80 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700/80">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                        {{ expenses.length || 0 }} Total
+                                    </span>
+                                </div>
+                                
+                                <p class="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                                    Track, organize, and monitor all your business expenses in real-time.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Quick Stats / Action Pill (Optional Right-Side Content) -->
+                        <div class="flex items-center gap-2 self-start sm:self-auto">
+                            <div class="flex items-center gap-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 shadow-xs">
+                                <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Spent:</span>
+                                <span class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                                    ৳{{ Number(totalExpensesAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
                                 </span>
                             </div>
-                            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Monitor and manage your customer transactions and shipping status.</p>
                         </div>
                     </div>
 
@@ -123,8 +149,8 @@
                                 <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs sm:text-sm">
                                     <!-- Loop Expenses -->
                                     <tr 
-                                        v-for="expense in expenses" 
-                                        :key="expense.id"
+                                        v-for="expense in filteredExpenses" 
+                                        :key="expense.id" @click="expensesDetails(expense)"
                                         class="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors"
                                     >
                                         <!-- ID & Date -->
@@ -184,7 +210,7 @@
                                         <td class="pl-4 pr-5 py-3.5 text-center">
                                             <div class="flex items-center justify-center gap-1.5">
                                                 <button 
-                                                    @click="editExpense(expense)"
+                                                    @click.stop="editExpense(expense)"
                                                     type="button"
                                                     class="p-1.5 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                                                     title="Edit Expense"
@@ -192,7 +218,7 @@
                                                     <i class="fa-solid fa-pen-to-square text-xs sm:text-sm"></i>
                                                 </button>
                                                 <button 
-                                                    @click="printExpense(expense)"
+                                                    @click.stop="printExpense(expense)"
                                                     type="button"
                                                     class="p-1.5 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                                                     title="Edit Expense"
@@ -200,7 +226,7 @@
                                                     <i class="fa-solid fa-print text-xs sm:text-sm"></i>
                                                 </button>
                                                 <button 
-                                                    @click="deleteExpense(expense.id)"
+                                                    @click.stop="deleteExpense(expense.id)"
                                                     type="button"
                                                     class="p-1.5 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                                                     title="Delete Expense"
@@ -222,6 +248,66 @@
                                     </tr>
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="flex flex-col gap-2 border-slate-200 bg-white dark:bg-slate-900 shadow-sm px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <!-- Showing info -->
+                        <p class="text-xs text-slate-500">
+                            Showing
+                            <span class="font-semibold text-slate-700">{{ pagination.from }}</span>
+                            –
+                            <span class="font-semibold text-slate-700">{{ pagination.to }}</span>
+                            of
+                            <span class="font-semibold text-slate-700">{{ pagination.total }}</span>
+                        </p>
+
+                        <div class="flex flex-wrap items-center justify-end gap-2">
+                            <!-- First -->
+                            <button
+                                @click="changePage(1)" :disabled="pagination.page === 1 || loading"
+                                class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+                                <i class="fa-solid fa-angles-left"></i>
+                            </button>
+
+                            <!-- Prev -->
+                            <button
+                                @click="changePage(pagination.page - 1)" :disabled="pagination.page === 1 || loading"
+                                class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </button>
+
+                            <!-- Pages -->
+                            <button
+                                v-for="page in ExpensesVisiblePages"
+                                :key="String(page)"
+                                @click="page !== '...' && changePage(page)"
+                                class="rounded-lg border px-3 py-1.5 text-xs font-semibold"
+                                :disabled="page === '...' || loading"
+                                :class="[
+                                    page === pagination.page
+                                        ? 'border-slate-900 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
+                                        : 'border-slate-200 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-100 hover:bg-slate-50'
+                                ]">
+                                {{ page }}
+                            </button>
+
+                            <!-- Next -->
+                            <button
+                                @click="changePage(pagination.page + 1)"
+                                :disabled="pagination.page === pagination.lastPage || loading"
+                                class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+                                <i class="fa-solid fa-angle-right"></i>
+                            </button>
+
+                            <!-- Last -->
+                            <button
+                                @click="changePage(pagination.lastPage)"
+                                :disabled="pagination.page === pagination.lastPage || loading"
+                                class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+                                <i class="fa-solid fa-angles-right"></i>
+                            </button>
                         </div>
                     </div>
                     
@@ -605,9 +691,46 @@ async function fetchExpenses(page = 1){
 
 
 
+const filteredExpenses = computed(() => {
+    const query = searchQuery.value.trim().toLowerCase();
+
+    if (!query) {
+        return expenses.value;
+    }
+
+    return expenses.value.filter(expense => {
+        return [
+            expense.id,
+            expense.title,
+            expense.amount,
+            expense.date,
+            expense.remark,
+            expense.category?.name,
+            expense.subcategory?.name,
+            expense.user?.name,
+        ].some(value =>
+            String(value ?? '').toLowerCase().includes(query)
+        );
+    });
+});
 
 
 
+
+
+const totalExpensesAmount = computed(() => {
+    return filteredExpenses.value.reduce((sum, expense) => {
+        return sum + (Number(expense.amount) || 0);
+    }, 0);
+});
+
+
+
+
+
+async function changePage(page) {
+    await fetchExpenses(page);
+}
 
 
 
@@ -721,7 +844,7 @@ function printExpense(expense){
     }
 
     const url = `/admin/expenses/print/${expense.id}`;
-    console.log("button clicked", url);
+    // console.log("button clicked", url);
 
     win.location.href = url;
     win.focus();
@@ -731,6 +854,52 @@ function printExpense(expense){
 
 
 
+
+
+
+
+function expensesDetails(expenses) {
+    router.push(`/admin/expenses/details/${expenses.id}`)
+}
+
+
+async function deleteExpense(id) {
+    if (!id) {
+        errorMsg.value = "Expense ID not found.";
+        return;
+    }
+
+    if (!confirm("Are you sure you want to delete this expense?")) {
+        return;
+    }
+
+    try {
+        loading.value = true;
+        errorMsg.value = "";
+
+        const res = await api.delete(`/expenses/${id}`);
+
+        if (res.data?.success) {
+            
+            expenses.value = expenses.value.filter(
+                expense => expense.id !== id
+            );
+
+            successMsg.value = res.data.message || "Expense deleted successfully.";
+        }
+
+    } catch (err) {
+        console.error("Delete expense error:", err);
+
+        errorMsg.value =
+            err?.response?.data?.message ||
+            Object.values(err?.response?.data?.errors || {})?.[0]?.[0] ||
+            "Failed to delete expense.";
+
+    } finally {
+        loading.value = false;
+    }
+}
 
 
 

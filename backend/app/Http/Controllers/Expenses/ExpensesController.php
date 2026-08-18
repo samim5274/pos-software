@@ -171,7 +171,8 @@ class ExpensesController extends Controller
         }
     }
 
-    public function printExpenses($id){
+    public function printExpenses($id)
+    {
         try{
             $userId = auth()->id();
             $expense = Expense::with(['category','subcategory','user'])->where('user_id', $userId)->findOrFail($id);
@@ -196,6 +197,93 @@ class ExpensesController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function details($id)
+    {
+        try {
+            $userId = auth()->id();
+
+            $expense = Expense::with([
+                'category',
+                'subcategory',
+                'user'
+            ])
+            ->where('user_id', $userId)
+            ->where('id', $id)
+            ->first();
+
+            if (!$expense) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Expense not found or you do not have permission to view this expense.',
+                    'data' => null,
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expense details retrieved successfully.',
+                'data' => $expense,
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            \Log::error("Expense details error: " . $e->getMessage(), [
+                'expense_id' => $id,
+                'user_id' => auth()->id(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong while fetching expense details.',
+                'data' => null,
+            ], 500);
+        }
+    }
+
+    public function delete($id)
+    {
+        try {
+            $userId = auth()->id();
+
+            $expense = Expense::where('user_id', $userId)
+                ->where('id', $id)
+                ->first();
+
+            if (!$expense) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Expense not found or you do not have permission to delete this expense.',
+                    'data' => null,
+                ], 404);
+            }
+
+            $expense->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expense deleted successfully.',
+                'data' => null,
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            \Log::error("Expense delete error: " . $e->getMessage(), [
+                'expense_id' => $id,
+                'user_id' => auth()->id(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong while deleting the expense.',
+                'data' => null,
             ], 500);
         }
     }

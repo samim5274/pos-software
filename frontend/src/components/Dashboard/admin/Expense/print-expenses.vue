@@ -143,10 +143,10 @@ async function fetchPrintData(id) {
             setTimeout(() => window.close(), 100);
         }, 100);
     } catch (err) {
-        console.log("AXIOS ERROR:", err);
-        console.log("STATUS:", err?.response?.status);
-        console.log("DATA:", err?.response?.data);
-        console.log("HEADERS:", err?.response?.headers);
+        // console.log("AXIOS ERROR:", err);
+        // console.log("STATUS:", err?.response?.status);
+        // console.log("DATA:", err?.response?.data);
+        // console.log("HEADERS:", err?.response?.headers);
         errorMsg.value = err?.response?.data?.message || "Failed to load print data.";
     } finally {
         loading.value = false;
