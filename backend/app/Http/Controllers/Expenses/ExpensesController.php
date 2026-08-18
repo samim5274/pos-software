@@ -287,4 +287,66 @@ class ExpensesController extends Controller
             ], 500);
         }
     }
+
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'category_id'     => ['required', 'exists:ex_categories,id'],
+            'sub_category_id' => ['nullable', 'exists:ex_sub_categories,id'],
+            'title'           => ['required', 'string', 'max:255'],
+            'amount'          => ['required', 'numeric', 'min:0'],
+            'remark'          => ['nullable', 'string'],
+        ]);
+
+        try {
+            $userId = auth()->id();
+
+            $expense = Expense::where('user_id', $userId)
+                ->where('id', $id)
+                ->first();
+
+            if (!$expense) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Expense not found or you do not have permission to update this expense.',
+                    'data' => null,
+                ], 404);
+            }
+
+            $expense->update([
+                'category_id'     => $request->category_id,
+                'sub_category_id' => $request->sub_category_id,
+                'title'           => $request->title,
+                'amount'          => $request->amount,
+                'remark'          => $request->remark . ' - Edited : ' . $expense->amount,
+            ]);
+
+            $expense->load([
+                'category',
+                'subcategory',
+                'user'
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expense updated successfully.',
+                'data' => $expense,
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            \Log::error("Expense update error: " . $e->getMessage(), [
+                'expense_id' => $id,
+                'user_id' => auth()->id(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong while updating the expense.',
+                'data' => null,
+            ], 500);
+        }
+    }
 }

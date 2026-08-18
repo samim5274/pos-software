@@ -210,7 +210,7 @@
                                         <td class="pl-4 pr-5 py-3.5 text-center">
                                             <div class="flex items-center justify-center gap-1.5">
                                                 <button 
-                                                    @click.stop="editExpense(expense)"
+                                                    @click.stop="openEditExpense(expense)"
                                                     type="button"
                                                     class="p-1.5 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                                                     title="Edit Expense"
@@ -516,6 +516,289 @@
                 </div>
             </Transition>
         </Teleport>
+
+        <Teleport to="body">
+            <Transition
+                enter-active-class="transition duration-300 ease-out"
+                enter-from-class="opacity-0 scale-95"
+                enter-to-class="opacity-100 scale-100"
+                leave-active-class="transition duration-200 ease-in"
+                leave-from-class="opacity-100 scale-100"
+                leave-to-class="opacity-0 scale-95"
+            >
+                <div
+                    v-if="isExpenseEditModalOpen"
+                    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md"
+                    @click.self="closeExpenseEditModal"
+                >
+                    <div
+                        @click.stop
+                        class="relative w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden transition-all"
+                    >
+                        <!-- Header -->
+                        <div
+                            class="px-6 py-5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50"
+                        >
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0"
+                                >
+                                    <i class="fa-solid fa-pen-to-square text-lg"></i>
+                                </div>
+
+                                <div>
+                                    <h3 class="text-base font-bold text-slate-900 dark:text-white">
+                                        Edit Expense
+                                    </h3>
+
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                                        Update the expense information below.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                @click="closeExpenseEditModal"
+                                class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors"
+                            >
+                                <i class="fa-solid fa-xmark text-sm"></i>
+                            </button>
+                        </div>
+
+                        <!-- Form -->
+                        <form @submit.prevent="updateExpense">
+                            <div
+                                class="p-6 space-y-5 max-h-[calc(100vh-200px)] overflow-y-auto"
+                            >
+
+                                <!-- Category + Subcategory -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+                                    <!-- Category -->
+                                    <div>
+                                        <label
+                                            class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider"
+                                        >
+                                            Category
+                                            <span class="text-rose-500">*</span>
+                                        </label>
+
+                                        <select
+                                            v-model="expenseForm.category_id"
+                                            @change="onCategoryChange"
+                                            class="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 dark:border-slate-700/80 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:focus:border-indigo-500 dark:focus:bg-slate-800 dark:focus:ring-indigo-500/20"
+                                            :class="{
+                                                '!border-rose-500 focus:!ring-rose-500/10':
+                                                    expenseErrors.category_id
+                                            }"
+                                        >
+                                            <option value="" disabled>
+                                                Select Category
+                                            </option>
+
+                                            <option
+                                                v-for="category in categories"
+                                                :key="category.id"
+                                                :value="category.id"
+                                            >
+                                                {{ category.name }}
+                                            </option>
+                                        </select>
+
+                                        <p
+                                            v-if="expenseErrors.category_id"
+                                            class="text-xs text-rose-500 mt-1.5 flex items-center gap-1"
+                                        >
+                                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                                            {{ expenseErrors.category_id[0] }}
+                                        </p>
+                                    </div>
+
+                                    <!-- Subcategory -->
+                                    <div>
+                                        <label
+                                            class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider"
+                                        >
+                                            Subcategory
+                                        </label>
+
+                                        <select
+                                            v-model="expenseForm.sub_category_id"
+                                            :disabled="
+                                                !expenseForm.category_id ||
+                                                filteredSubcategories.length === 0
+                                            "
+                                            class="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 dark:border-slate-700/80 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:focus:border-indigo-500 dark:focus:bg-slate-800 dark:focus:ring-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            :class="{
+                                                '!border-rose-500 focus:!ring-rose-500/10':
+                                                    expenseErrors.sub_category_id
+                                            }"
+                                        >
+                                            <option value="">
+                                                {{
+                                                    !expenseForm.category_id
+                                                        ? 'Select category first'
+                                                        : filteredSubcategories.length
+                                                            ? 'Select Subcategory'
+                                                            : 'No subcategory available'
+                                                }}
+                                            </option>
+
+                                            <option
+                                                v-for="subcategory in filteredSubcategories"
+                                                :key="subcategory.id"
+                                                :value="subcategory.id"
+                                            >
+                                                {{ subcategory.name }}
+                                            </option>
+                                        </select>
+
+                                        <p
+                                            v-if="expenseErrors.sub_category_id"
+                                            class="text-xs text-rose-500 mt-1.5 flex items-center gap-1"
+                                        >
+                                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                                            {{ expenseErrors.sub_category_id[0] }}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <!-- Title -->
+                                <div>
+                                    <label
+                                        class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider"
+                                    >
+                                        Expense Title
+                                        <span class="text-rose-500">*</span>
+                                    </label>
+
+                                    <input
+                                        v-model="expenseForm.title"
+                                        type="text"
+                                        placeholder="e.g. Office electricity bill"
+                                        class="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 dark:border-slate-700/80 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:focus:border-indigo-500 dark:focus:bg-slate-800 dark:focus:ring-indigo-500/20"
+                                        :class="{
+                                            '!border-rose-500 focus:!ring-rose-500/10':
+                                                expenseErrors.title
+                                        }"
+                                    />
+
+                                    <p
+                                        v-if="expenseErrors.title"
+                                        class="text-xs text-rose-500 mt-1.5 flex items-center gap-1"
+                                    >
+                                        <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                                        {{ expenseErrors.title[0] }}
+                                    </p>
+                                </div>
+
+                                <!-- Amount -->
+                                <div>
+                                    <label
+                                        class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider"
+                                    >
+                                        Amount
+                                        <span class="text-rose-500">*</span>
+                                    </label>
+
+                                    <div class="relative">
+                                        <span
+                                            class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-semibold text-sm pointer-events-none"
+                                        >
+                                            ৳
+                                        </span>
+
+                                        <input
+                                            v-model="expenseForm.amount"
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            placeholder="0.00"
+                                            class="w-full pl-8 pr-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 dark:border-slate-700/80 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:focus:border-indigo-500 dark:focus:bg-slate-800 dark:focus:ring-indigo-500/20"
+                                            :class="{
+                                                '!border-rose-500 focus:!ring-rose-500/10':
+                                                    expenseErrors.amount
+                                            }"
+                                        />
+                                    </div>
+
+                                    <p
+                                        v-if="expenseErrors.amount"
+                                        class="text-xs text-rose-500 mt-1.5 flex items-center gap-1"
+                                    >
+                                        <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                                        {{ expenseErrors.amount[0] }}
+                                    </p>
+                                </div>
+
+                                <!-- Remark -->
+                                <div>
+                                    <label
+                                        class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider"
+                                    >
+                                        Remark
+                                    </label>
+
+                                    <textarea
+                                        v-model="expenseForm.remark"
+                                        rows="3"
+                                        placeholder="Write any additional notes..."
+                                        class="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 dark:border-slate-700/80 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:focus:border-indigo-500 dark:focus:bg-slate-800 dark:focus:ring-indigo-500/20 resize-none"
+                                    ></textarea>
+
+                                    <p
+                                        v-if="expenseErrors.remark"
+                                        class="text-xs text-rose-500 mt-1.5 flex items-center gap-1"
+                                    >
+                                        <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                                        {{ expenseErrors.remark[0] }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Footer -->
+                            <div
+                                class="px-6 py-4 bg-slate-50/80 dark:bg-slate-800/40 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-end gap-3 backdrop-blur-sm"
+                            >
+                                <button
+                                    type="button"
+                                    @click="closeExpenseEditModal"
+                                    :disabled="updatingExpense"
+                                    class="px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 border border-slate-200/80 dark:text-slate-300 dark:hover:text-white dark:bg-slate-800 dark:hover:bg-slate-700/80 dark:border-slate-700/80 rounded-xl transition-all shadow-xs disabled:opacity-50 active:scale-95 shrink-0"
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    :disabled="updatingExpense"
+                                    class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs hover:shadow-indigo-500/25 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed shrink-0"
+                                >
+                                    <i
+                                        v-if="updatingExpense"
+                                        class="fa-solid fa-spinner fa-spin text-xs"
+                                    ></i>
+
+                                    <i
+                                        v-else
+                                        class="fa-solid fa-check text-xs"
+                                    ></i>
+
+                                    <span>
+                                        {{
+                                            updatingExpense
+                                                ? 'Updating...'
+                                                : 'Update Expense'
+                                        }}
+                                    </span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </Transition>
+        </Teleport>
     </div>
 </template>
 
@@ -553,6 +836,10 @@ const loading = ref(false);
 
 const isExpenseModalOpen = ref(false);
 const savingExpense = ref(false);
+
+const isExpenseEditModalOpen = ref(false);
+const updatingExpense = ref(false);
+const editingExpenseId = ref(null);
 
 const expenseForm = reactive({
     category_id: '',
@@ -900,6 +1187,106 @@ async function deleteExpense(id) {
         loading.value = false;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function openEditExpense(expense) {
+    editingExpenseId.value = expense.id;
+
+    expenseForm.category_id = expense.category_id ?? "";
+    expenseForm.sub_category_id = expense.sub_category_id ?? "";
+    expenseForm.title = expense.title ?? "";
+    expenseForm.amount = expense.amount ?? "";
+    expenseForm.remark = expense.remark ?? "";
+
+    expenseErrors.value = {};
+
+    isExpenseEditModalOpen.value = true;
+}
+
+
+async function updateExpense() {
+    if (!editingExpenseId.value) {
+        errorMsg.value = "Expense ID not found.";
+        return;
+    }
+
+    try {
+        updatingExpense.value = true;
+        expenseErrors.value = {};
+        errorMsg.value = "";
+
+        const payload = {
+            category_id: expenseForm.category_id,
+            sub_category_id: expenseForm.sub_category_id || null,
+            title: expenseForm.title,
+            amount: expenseForm.amount,
+            remark: expenseForm.remark || null,
+        };
+
+        const res = await api.put(
+            `/expenses/${editingExpenseId.value}`,
+            payload
+        );
+
+        if (res.data?.success) {
+            successMsg.value =
+                res.data.message || "Expense updated successfully.";
+
+            isExpenseEditModalOpen.value = false;
+            editingExpenseId.value = null;
+
+            await fetchExpenses();
+        }
+
+    } catch (err) {
+        // console.error("Update expense error:", err);
+        // console.error("Status:", err?.response?.status);
+        // console.error("Response:", err?.response?.data);
+
+        if (err?.response?.status === 422) {
+            expenseErrors.value = err.response.data?.errors || {};
+        }
+
+        errorMsg.value =
+            err?.response?.data?.message ||
+            "Failed to update expense.";
+
+    } finally {
+        updatingExpense.value = false;
+    }
+}
+
+
+
+function closeExpenseEditModal() {
+    if (updatingExpense.value) return;
+
+    isExpenseEditModalOpen.value = false;
+    editingExpenseId.value = null;
+    expenseErrors.value = {};
+}
+
+
+
 
 
 
