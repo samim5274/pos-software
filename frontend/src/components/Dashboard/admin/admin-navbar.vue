@@ -319,11 +319,11 @@
                                 <button
                                 class="w-full px-4 py-2 text-sm text-left transition
                                         hover:bg-white dark:hover:bg-white/10"
-                                :class="activeKey === 'expensesSetting'
+                                :class="activeKey === 'SettingExpenses'
                                     ? 'bg-white text-slate-900 font-medium dark:bg-white/10 dark:text-white'
                                     : 'text-slate-700 dark:text-slate-200/90'"
-                                @click="pick('expensesSetting')">
-                                Expenses Setting
+                                @click="pick('SettingExpenses')">
+                                Setting
                                 </button>
                             </li>
                         </ul>
@@ -453,6 +453,7 @@ const routeMap = {
     // Others
     notice: "/admin/notice",
     expenses: "/admin/expenses",
+    SettingExpenses: "/admin/expenses/setting",
 
     setting: "/admin/setting",
     logout: "/login",
@@ -490,6 +491,7 @@ const routeMatch = [
 
 
     { key: "notice", prefixes: ["/admin/notice"] },
+    { key: "SettingExpenses", prefixes: ["/admin/expenses/setting"] },
     { key: "expenses", prefixes: ["/admin/expenses"] },
 
     { key: "logout", prefixes: ["/logout"] },
@@ -575,7 +577,7 @@ watch(
 watch(
     () => activeKey.value,
     (k) => {
-        const expensesKeys = ['expenses',];
+        const expensesKeys = ['expenses', 'SettingExpenses'];
         if(expensesKeys.includes(k)){
         expensesPagesOpen.value = true;
         }
@@ -583,7 +585,14 @@ watch(
     {immediate: true }
 );
 
-
+// watch(
+//     () => route.path,
+//     (path) => {
+//         console.log('Current Path:', path);
+//         console.log('Active Key:', activeKey.value);
+//     },
+//     { immediate: true }
+// );
 
 
 

@@ -74,7 +74,7 @@ class ExpensesController extends Controller
         try {
             $categories = ExCategory::query()
                 ->orderBy('id', 'desc')
-                ->get();
+                ->paginate(20);
 
             return response()->json([
                 'success' => true,
@@ -345,6 +345,123 @@ class ExpensesController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Something went wrong while updating the expense.',
+                'data' => null,
+            ], 500);
+        }
+    }
+
+    public function categoryCreate(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+        ]);
+
+        try {
+            $expenseCategory = ExCategory::create([
+                'name' => $validated['name'],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expense category created successfully.',
+                'data'    => $expenseCategory,
+            ], 201);
+
+        } catch (\Throwable $e) {
+
+            Log::error('Failed to create expense.', [
+                'user_id' => auth()->id(),
+                'request' => $request->except(['password', 'token']),
+                'error'   => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to create expense category at this time. Please try again later.',
+            ], 500);
+        }
+    }
+
+    public function categoryDelete($id)
+    {
+        try {
+            $expenseCategory = ExCategory::where('id', $id)->first();
+
+            if (!$expenseCategory) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Expense not found or you do not have permission to delete this expense category.',
+                    'data' => null,
+                ], 404);
+            }
+
+            $expenseCategory->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expense Category deleted successfully.',
+                'data' => null,
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            \Log::error("Expense delete error: " . $e->getMessage(), [
+                'expense_id' => $id,
+                'user_id' => auth()->id(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong while deleting the expense category.',
+                'data' => null,
+            ], 500);
+        }
+    }
+
+    public function categoryEdit(Request $request, $id)
+    {
+        $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+        ]);
+
+        try {
+            
+            $expenseCategory = ExCategory::where('id', $id)->first();
+
+            if (!$expenseCategory) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Expense not found or you do not have permission to update this expense category.',
+                    'data' => null,
+                ], 404);
+            }
+
+            $expenseCategory->update([
+                'name' => $request->name,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expense updated successfully.',
+                'data' => $expenseCategory,
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            \Log::error("Expense update error: " . $e->getMessage(), [
+                'expense_id' => $id,
+                'user_id' => auth()->id(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong while updating the expense category.',
                 'data' => null,
             ], 500);
         }

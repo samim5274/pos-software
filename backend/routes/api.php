@@ -376,12 +376,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('expenses')->group(function () {
         Route::get('/', [ExpensesController::class, 'index']);
         Route::post('/', [ExpensesController::class, 'store']);
-        Route::get('/category', [ExpensesController::class, 'getExCategory']);
-        Route::get('/sub-category', [ExpensesController::class, 'getExSubCategory']);
         Route::get('/print/{id}', [ExpensesController::class, 'printExpenses']);
         Route::get('/details/{id}', [ExpensesController::class, 'details']);
         Route::delete('/{id}', [ExpensesController::class, 'delete']);
         Route::put('/{id}', [ExpensesController::class, 'update']);
+
+        Route::prefix('category')->group(function () {
+            Route::get('/', [ExpensesController::class, 'getExCategory']);
+            Route::post('/', [ExpensesController::class, 'categoryCreate']);
+            Route::delete('/{id}', [ExpensesController::class, 'categoryDelete']);
+            Route::put('/{id}', [ExpensesController::class, 'categoryEdit']);
+        });
+        Route::get('/get-sub-category', [ExpensesController::class, 'getExSubCategory']);
     });
 });
 

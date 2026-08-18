@@ -69,6 +69,7 @@ const C_Notice_details = () => import('../components/Dashboard/admin/notice/cust
 const Expenses = () => import('../components/Dashboard/admin/Expense/expenses.vue');
 const ExpensesPrint = () => import('../components/Dashboard/admin/Expense/print-expenses.vue')
 const ExpensesDetails = () => import('../components/Dashboard/admin/Expense/expenses-details.vue')
+const ExpensesSetting = () => import('../components/Dashboard/admin/Expense/expenses-setting.vue')
 
 
 
@@ -156,6 +157,7 @@ const routes = [
     { path: '/admin/expenses', component: Expenses, meta:{title: 'Expenses', requiresAuth: true, roles: ['staff', 'admin', 'super_admin']}},
     { path: '/admin/expenses/print/:id', component: ExpensesPrint, meta:{title: 'Expenses Print', requiresAuth: true, roles: ['staff', 'admin', 'super_admin']}},
     { path: '/admin/expenses/details/:id', component: ExpensesDetails, meta:{title: 'Expenses Details', requiresAuth: true, roles: ['staff', 'admin', 'super_admin']}},
+    { path: '/admin/expenses/setting', component: ExpensesSetting, meta:{title: 'Expenses Setting', requiresAuth: true, roles: ['staff', 'admin', 'super_admin']}},
 
     
 ]
