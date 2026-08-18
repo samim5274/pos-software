@@ -571,13 +571,13 @@ watch(
 
 
 
-// user dropdown
+// Expenses dropdown
 watch(
     () => activeKey.value,
     (k) => {
-        const userKeys = ['users', 'assignUserToTree','userSetting'];
-        if(userKeys.includes(k)){
-        userPagesOpen.value = true;
+        const expensesKeys = ['expenses',];
+        if(expensesKeys.includes(k)){
+        expensesPagesOpen.value = true;
         }
     },
     {immediate: true }

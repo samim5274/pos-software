@@ -66,7 +66,7 @@ const C_Notice_details = () => import('../components/Dashboard/admin/notice/cust
 
 
 
-const Expenses = () => import('../components/Dashboard/admin/Expense/expense-overview.vue');
+const Expenses = () => import('../components/Dashboard/admin/Expense/expenses.vue');
 
 
 

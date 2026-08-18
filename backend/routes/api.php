@@ -27,9 +27,8 @@ use App\Http\Controllers\Order\CouponController;
 
 use App\Http\Controllers\Notice\NoticeController;
 
-use App\Http\Controllers\Expense\ExpenseController;
-
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Expenses\ExpensesController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
@@ -362,6 +361,24 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 
+
+
+
+
+
+
+
+
+// ======================
+// Expenses Routes
+// ======================
+Route::middleware('auth:sanctum')->group(function () {
+    Route::prefix('expenses')->group(function () {
+        Route::get('/', [ExpensesController::class, 'index']);
+        Route::get('/category', [ExpensesController::class, 'getExCategory']);
+        Route::get('/sub-category', [ExpensesController::class, 'getExSubCategory']);
+    });
+});
 
 
 

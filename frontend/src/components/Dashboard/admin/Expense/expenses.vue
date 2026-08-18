@@ -1,0 +1,620 @@
+<template>
+    <div class="min-h-screen bg-white dark:bg-slate-950 transition-colors duration-200">
+        <HeaderSection
+            :is-dark="isDark"
+            @toggle-dark="toggleDarkMode"
+            @toggle-menu="toggleMenu"
+        />
+
+        <div class="flex  min-h-[calc(100vh-56px)]">
+            <Navbar
+                :mobile-menu="mobileMenu"
+                @close="mobileMenu = false" />
+
+            <Message
+                :successMsg="successMsg"
+                :errorMsg="errorMsg"
+                @update:successMsg="successMsg = $event"
+                @update:errorMsg="errorMsg = $event"
+            />
+
+            <!-- Content -->
+            <div class="flex-1 min-w-0">
+                <main class="flex-1 min-h-screen min-w-0 bg-gray-50 dark:bg-[#0C1326] px-4 sm:px-6 lg:px-8 py-6">
+
+                    
+
+                    <div class="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                        <div>
+                            <div class="flex items-center gap-3">
+                                <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Expenses Management</h1>
+                                <span class="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20">
+                                    0 Orders
+                                </span>
+                            </div>
+                            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Monitor and manage your customer transactions and shipping status.</p>
+                        </div>
+                    </div>
+
+                    <div class="mb-6 rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 transition-colors">
+                        <div class="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center">
+                            
+                            <!-- Search Input -->
+                            <div class="relative flex-1 w-full">
+                                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 dark:text-slate-500">
+                                    <i class="fa-solid fa-magnifying-glass text-xs sm:text-sm"></i>
+                                </div>
+                                <input 
+                                    type="text" 
+                                    v-model="searchQuery" 
+                                    placeholder="Search by ID, Customer name or Transaction..." 
+                                    class="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-2.5 pl-10 pr-4 text-xs sm:text-sm text-slate-900 placeholder-slate-400 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:border-slate-700/80 dark:bg-slate-800/60 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-indigo-500 dark:focus:bg-slate-800 dark:focus:ring-indigo-500/20"
+                                />
+                            </div>
+
+                            <!-- Create Expenses Button -->
+                            <button 
+                                type="button" @click="openExpenseModal"
+                                class="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-sm transition-all hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:hover:bg-indigo-400 shrink-0"
+                            >
+                                <i class="fa-solid fa-plus text-xs sm:text-sm"></i>
+                                <span>Create Expenses</span>
+                            </button>
+
+                        </div>
+                    </div>
+
+
+                    
+                    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto max-h-[850px] scrollbar-thin">
+                            <table class="w-full text-left border-collapse whitespace-nowrap">
+                                <!-- Table Header -->
+                                <thead class="bg-slate-50/80 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800 sticky top-0 backdrop-blur-md z-10">
+                                    <tr>
+                                        <th class="pl-5 pr-4 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest w-[14%]">Order / Reg</th>
+                                        <th class="px-4 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest w-[26%]">Customer & Contact</th>
+                                        <th class="px-4 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest w-[16%]">Timeline</th>
+                                        <th class="px-4 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest w-[16%]">Payment & Gateway</th>
+                                        <th class="px-4 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest w-[14%] text-right">Financials (BDT)</th>
+                                        <th class="pl-4 pr-5 py-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest w-[14%] text-center">Action</th>
+                                    </tr>
+                                </thead>
+
+                            </table>
+                        </div>
+                    </div>
+                    
+
+                </main>
+            </div>
+        </div>
+        <FooterSection />
+
+        <Teleport to="body">
+            <Transition
+                enter-active-class="transition duration-300 ease-out"
+                enter-from-class="opacity-0 scale-95"
+                enter-to-class="opacity-100 scale-100"
+                leave-active-class="transition duration-200 ease-in"
+                leave-from-class="opacity-100 scale-100"
+                leave-to-class="opacity-0 scale-95"
+            >
+                <div
+                    v-if="isExpenseModalOpen"
+                    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md"
+                    @click.self="closeExpenseModal"
+                >
+                    <div
+                        @click.stop
+                        class="relative w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden transition-all"
+                    >
+                        <!-- Modal Header -->
+                        <div class="px-6 py-5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-receipt text-lg"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-base font-bold text-slate-900 dark:text-white">
+                                        Create New Expense
+                                    </h3>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                                        Enter details to record a new business expense.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                @click="closeExpenseModal"
+                                class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors"
+                            >
+                                <i class="fa-solid fa-xmark text-sm"></i>
+                            </button>
+                        </div>
+
+                        <!-- Form -->
+                        <form @submit.prevent="createExpense">
+                            <div class="p-6 space-y-5 max-h-[calc(100vh-200px)] overflow-y-auto">
+
+                                <!-- Category + Subcategory -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <!-- Category -->
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                                            Category <span class="text-rose-500">*</span>
+                                        </label>
+                                        <select
+                                            v-model="expenseForm.category_id"
+                                            @change="onCategoryChange"
+                                            class="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 dark:border-slate-700/80 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:focus:border-indigo-500 dark:focus:bg-slate-800 dark:focus:ring-indigo-500/20"
+                                            :class="{ '!border-rose-500 focus:!ring-rose-500/10': expenseErrors.category_id }"
+                                        >
+                                            <option value="" disabled class="text-slate-400">Select Category</option>
+                                            <option
+                                                v-for="category in categories"
+                                                :key="category.id"
+                                                :value="category.id"
+                                            >
+                                                {{ category.name }}
+                                            </option>
+                                        </select>
+                                        <p v-if="expenseErrors.category_id" class="text-xs text-rose-500 mt-1.5 flex items-center gap-1">
+                                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                                            {{ expenseErrors.category_id[0] }}
+                                        </p>
+                                    </div>
+
+                                    <!-- Subcategory -->
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                                            Subcategory
+                                        </label>
+                                        <select
+                                            v-model="expenseForm.sub_category_id"
+                                            :disabled="!expenseForm.category_id || filteredSubcategories.length === 0"
+                                            class="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 dark:border-slate-700/80 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:focus:border-indigo-500 dark:focus:bg-slate-800 dark:focus:ring-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <option value="">
+                                                {{
+                                                    !expenseForm.category_id
+                                                        ? 'Select category first'
+                                                        : filteredSubcategories.length
+                                                            ? 'Select Subcategory'
+                                                            : 'No subcategory available'
+                                                }}
+                                            </option>
+                                            <option
+                                                v-for="subcategory in filteredSubcategories"
+                                                :key="subcategory.id"
+                                                :value="subcategory.id"
+                                            >
+                                                {{ subcategory.name }}
+                                            </option>
+                                        </select>
+                                        <p v-if="expenseErrors.sub_category_id" class="text-xs text-rose-500 mt-1.5 flex items-center gap-1">
+                                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                                            {{ expenseErrors.sub_category_id[0] }}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <!-- Title -->
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                                        Expense Title <span class="text-rose-500">*</span>
+                                    </label>
+                                    <input
+                                        v-model="expenseForm.title"
+                                        type="text"
+                                        placeholder="e.g. Office electricity bill"
+                                        class="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 dark:border-slate-700/80 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:focus:border-indigo-500 dark:focus:bg-slate-800 dark:focus:ring-indigo-500/20"
+                                        :class="{ '!border-rose-500 focus:!ring-rose-500/10': expenseErrors.title }"
+                                    />
+                                    <p v-if="expenseErrors.title" class="text-xs text-rose-500 mt-1.5 flex items-center gap-1">
+                                        <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                                        {{ expenseErrors.title[0] }}
+                                    </p>
+                                </div>
+
+                                <!-- Date + Amount -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <!-- Date -->
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                                            Expense Date <span class="text-rose-500">*</span>
+                                        </label>
+                                        <input
+                                            v-model="expenseForm.date"
+                                            type="date"
+                                            class="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 dark:border-slate-700/80 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:focus:border-indigo-500 dark:focus:bg-slate-800 dark:focus:ring-indigo-500/20"
+                                            :class="{ '!border-rose-500 focus:!ring-rose-500/10': expenseErrors.date }"
+                                        />
+                                        <p v-if="expenseErrors.date" class="text-xs text-rose-500 mt-1.5 flex items-center gap-1">
+                                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                                            {{ expenseErrors.date[0] }}
+                                        </p>
+                                    </div>
+
+                                    <!-- Amount -->
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                                            Amount <span class="text-rose-500">*</span>
+                                        </label>
+                                        <div class="relative">
+                                            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-semibold text-sm pointer-events-none">
+                                                ৳
+                                            </span>
+                                            <input
+                                                v-model="expenseForm.amount"
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                placeholder="0.00"
+                                                class="w-full pl-8 pr-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 dark:border-slate-700/80 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:focus:border-indigo-500 dark:focus:bg-slate-800 dark:focus:ring-indigo-500/20"
+                                                :class="{ '!border-rose-500 focus:!ring-rose-500/10': expenseErrors.amount }"
+                                            />
+                                        </div>
+                                        <p v-if="expenseErrors.amount" class="text-xs text-rose-500 mt-1.5 flex items-center gap-1">
+                                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                                            {{ expenseErrors.amount[0] }}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <!-- Remark -->
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                                        Remark
+                                    </label>
+                                    <textarea
+                                        v-model="expenseForm.remark"
+                                        rows="3"
+                                        placeholder="Write any additional notes..."
+                                        class="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 dark:border-slate-700/80 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:focus:border-indigo-500 dark:focus:bg-slate-800 dark:focus:ring-indigo-500/20 resize-none"
+                                    ></textarea>
+                                    <p v-if="expenseErrors.remark" class="text-xs text-rose-500 mt-1.5 flex items-center gap-1">
+                                        <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                                        {{ expenseErrors.remark[0] }}
+                                    </p>
+                                </div>
+
+                            </div>
+
+                            <!-- Footer -->
+                            <div class="px-6 py-4 bg-slate-50/80 dark:bg-slate-800/40 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-end gap-3 backdrop-blur-sm">
+                                <!-- Cancel Button -->
+                                <button
+                                    type="button"
+                                    @click="closeExpenseModal"
+                                    :disabled="savingExpense"
+                                    class="px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 border border-slate-200/80 dark:text-slate-300 dark:hover:text-white dark:bg-slate-800 dark:hover:bg-slate-700/80 dark:border-slate-700/80 rounded-xl transition-all shadow-xs disabled:opacity-50 active:scale-95 shrink-0"
+                                >
+                                    Cancel
+                                </button>
+
+                                <!-- Submit Button -->
+                                <button
+                                    type="submit"
+                                    :disabled="savingExpense"
+                                    class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs hover:shadow-indigo-500/25 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed shrink-0"
+                                >
+                                    <i v-if="savingExpense" class="fa-solid fa-spinner fa-spin text-xs"></i>
+                                    <i v-else class="fa-solid fa-plus text-xs"></i>
+                                    <span>{{ savingExpense ? 'Saving...' : 'Create Expense' }}</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </Transition>
+        </Teleport>
+    </div>
+</template>
+
+<script setup>
+import { ref, reactive, onMounted, computed, watch } from "vue";
+import { useRouter } from 'vue-router'
+import api, {makeImg} from '../../../../services/api.js'
+
+import Navbar from "../../admin/admin-navbar.vue";
+import HeaderSection from "../../admin/admin-header.vue";
+import Message from '../../../Message/message.vue'
+import FooterSection from "../../../footer.vue";
+
+
+
+const mobileMenu = ref(false);
+
+function toggleMenu() {
+    mobileMenu.value = !mobileMenu.value;
+}
+
+
+
+
+const sidebarOpen = ref(false);
+const active = ref("dashboard");
+const router = useRouter();
+const successMsg = ref('');
+const errorMsg = ref('');
+const search = ref('');
+
+const loading = ref(false);
+
+
+
+const isExpenseModalOpen = ref(false);
+const savingExpense = ref(false);
+
+const expenseForm = reactive({
+    category_id: '',
+    sub_category_id: '',
+    title: '',
+    date: new Date().toISOString().split('T')[0],
+    amount: '',
+    remark: '',
+});
+
+const expenseErrors = ref({});
+
+
+
+
+
+
+
+
+
+
+
+// =============================
+// Get orders
+// =============================
+const ExpensesVisiblePages = computed(() => {
+    const pages = [];
+    const last = pagination.value.lastPage;
+    const cur = pagination.value.page;
+
+    if (last <= 5) {
+        for (let i = 1; i <= last; i++) pages.push(i);
+        return pages;
+    }
+
+    pages.push(1);
+
+    if (cur > 3) pages.push("...");
+
+    const start = Math.max(2, cur - 1);
+    const end = Math.min(last - 1, cur + 1);
+
+    for (let i = start; i <= end; i++) {
+        pages.push(i);
+    }
+
+    if (cur < last - 2) pages.push("...");
+
+    pages.push(last);
+
+    return pages;
+});
+
+
+
+const pagination = ref({
+    page: 1,
+    lastPage: 1,
+    total: 0,
+    perPage: 20,
+    from: 0,
+    to: 0,
+});
+
+
+const expenses = ref([]);
+const categories = ref([]);
+const subcategories = ref([]);
+const searchQuery = ref('');
+
+async function fetchExpenses(page = 1){
+    
+    try{
+        loading.value = true;
+        errorMsg.value = '';
+
+        const res = await api.get('/expenses', {
+            params: { 
+                page,
+            }
+        });
+
+        const data = res.data?.data;
+
+        // Expenses pagination data
+        const expensePagination = data?.expenses;
+
+        expenses.value = expensePagination?.data ?? [];
+
+        categories.value = data?.categories ?? [];
+        subcategories.value = data?.subcategories ?? [];
+
+        // Pagination
+        pagination.value = {
+            page: expensePagination?.current_page ?? 1,
+            lastPage: expensePagination?.last_page ?? 1,
+            total: expensePagination?.total ?? 0,
+            perPage: expensePagination?.per_page ?? 20,
+            from: expensePagination?.from ?? 0,
+            to: expensePagination?.to ?? 0,
+        };
+        // console.log(subcategories.value);
+    } catch(err){
+        console.error('Fetch expenses error:', err);
+
+        errorMsg.value =
+            err?.response?.data?.message ||
+            err?.message ||
+            'Something went wrong while fetching expenses.';
+
+        expenses.value = [];
+
+        pagination.value = {
+            page: 1,
+            lastPage: 1,
+            total: 0,
+            perPage: 20,
+            from: 0,
+            to: 0,
+        };
+    } finally {
+        loading.value = false;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+const filteredSubcategories = computed(() => {
+    if (!expenseForm.category_id) {
+        return [];
+    }
+
+    return subcategories.value.filter(
+        sub => Number(sub.category_id) === Number(expenseForm.category_id)
+    );
+});
+
+// open pop-up
+const isExpensesModalOpen = ref(false);
+
+function openExpenseModal() {
+    expenseForm.category_id = '';
+    expenseForm.sub_category_id = '';
+    expenseForm.title = '';
+    expenseForm.date = new Date().toISOString().split('T')[0];
+    expenseForm.amount = '';
+    expenseForm.remark = '';
+
+    expenseErrors.value = {};
+
+    isExpenseModalOpen.value = true;
+}
+
+
+function closeExpenseModal() {
+    if (savingExpense.value) return;
+
+    isExpenseModalOpen.value = false;
+}
+
+function onCategoryChange() {
+    expenseForm.sub_category_id = '';
+}
+
+async function createExpense() {
+    savingExpense.value = true;
+    expenseErrors.value = {};
+
+    try {
+        const payload = {
+            category_id: expenseForm.category_id,
+            sub_category_id: expenseForm.sub_category_id || null,
+            title: expenseForm.title,
+            date: expenseForm.date,
+            amount: expenseForm.amount,
+            remark: expenseForm.remark || null,
+        };
+
+        const res = await api.post('/expenses', payload);
+
+        console.log(res.data);
+
+        isExpenseModalOpen.value = false;
+
+        // Expense list refresh
+        await fetchExpenses(pagination.value.page);
+
+    } catch (err) {
+
+        console.error('Create expense error:', err);
+
+        if (err?.response?.status === 422) {
+            expenseErrors.value = err.response.data.errors ?? {};
+        } else {
+            errorMsg.value =
+                err?.response?.data?.message ||
+                err?.message ||
+                'Something went wrong while creating expense.';
+        }
+
+    } finally {
+        savingExpense.value = false;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// dark and light mode
+const isDark = ref(false);
+function applyTheme(dark) {
+    isDark.value = dark;
+    document.documentElement.classList.toggle("dark", dark);
+    localStorage.setItem("theme", dark ? "dark" : "light");
+}
+
+function toggleTheme() {
+    applyTheme(!isDark.value);
+}
+
+function toggleDarkMode() {
+    isDark.value = !isDark.value;
+    document.documentElement.classList.toggle("dark",isDark.value);
+    localStorage.setItem("theme",isDark.value ? "dark" : "light");
+}
+
+/* ESC to close drawer */
+onMounted(() => {
+    fetchExpenses();
+
+
+    window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") sidebarOpen.value = false;
+    });
+
+    const saved = localStorage.getItem("theme");
+    if (saved === "dark") applyTheme(true);
+    else if (saved === "light") applyTheme(false);
+    else applyTheme(window.matchMedia("(prefers-color-scheme: dark)").matches);
+});
+</script>
+
+<style>
+
+</style>

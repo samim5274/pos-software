@@ -19,6 +19,11 @@ class Expense extends Model
         'remark'
     ];
 
+    protected $casts = [
+        'date'      => 'date:Y-m-d',
+        'amount'    => 'decimal:2',
+    ];
+
     public function category()
     {
         return $this->belongsTo(ExCategory::class, 'category_id', 'id');
