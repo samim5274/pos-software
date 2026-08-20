@@ -69,6 +69,47 @@ class ExpensesController extends Controller
         }
     }
 
+    public function getCategoryAndSubCategory()
+    {
+        try {
+            $data = Cache::remember(
+                'expense.categories_subcategories.v1',
+                now()->addHours(6),
+                function () {
+                    return [
+                        'categories' => ExCategory::query()
+                            ->orderByDesc('id')
+                            ->get(),
+
+                        'subcategories' => ExSubCategory::query()
+                            ->orderByDesc('id')
+                            ->get(),
+                    ];
+                }
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expense categories and sub-categories fetched successfully.',
+                'data' => $data,
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            Log::error('Failed to fetch expense categories and sub-categories.', [
+                'user_id' => auth()->id(),
+                'error'   => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to fetch expense categories and sub-categories.',
+            ], 500);
+        }
+    }
+
     public function getExCategory()
     {
         try {
@@ -100,29 +141,29 @@ class ExpensesController extends Controller
     public function getExSubCategory()
     {
         try {
-            $subcategories = ExSubCategory::query()
-                ->where('category_id', $id)
-                ->orderBy('id', 'desc')
-                ->get();
+            $subcategories = ExSubCategory::query()->with('category')
+                ->orderByDesc('id')
+                ->paginate(20);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Expense subcategories fetched successfully.',
-                'data'    => $subcategories,
+                'message' => 'Expense sub-categories fetched successfully.',
+                'data' => $subcategories,
             ], 200);
 
         } catch (\Throwable $e) {
 
-            Log::error('Failed to fetch expense subcategories.', [
-                'category_id' => $id,
-                'error'       => $e->getMessage(),
-                'file'        => $e->getFile(),
-                'line'        => $e->getLine(),
+            Log::error('Failed to fetch expense sub-categories.', [
+                'user_id' => auth()->id(),
+                'error'   => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch expense subcategories.',
+                'message' => 'Unable to fetch expense sub-categories.',
+                'data'    => null,
             ], 500);
         }
     }
@@ -361,6 +402,8 @@ class ExpensesController extends Controller
                 'name' => $validated['name'],
             ]);
 
+            Cache::forget('expense.categories_subcategories.v1');
+
             return response()->json([
                 'success' => true,
                 'message' => 'Expense category created successfully.',
@@ -399,6 +442,8 @@ class ExpensesController extends Controller
 
             $expenseCategory->delete();
 
+            Cache::forget('expense.categories_subcategories.v1');
+
             return response()->json([
                 'success' => true,
                 'message' => 'Expense Category deleted successfully.',
@@ -429,7 +474,7 @@ class ExpensesController extends Controller
         ]);
 
         try {
-            
+
             $expenseCategory = ExCategory::where('id', $id)->first();
 
             if (!$expenseCategory) {
@@ -443,6 +488,8 @@ class ExpensesController extends Controller
             $expenseCategory->update([
                 'name' => $request->name,
             ]);
+
+            Cache::forget('expense.categories_subcategories.v1');
 
             return response()->json([
                 'success' => true,
@@ -463,6 +510,173 @@ class ExpensesController extends Controller
                 'success' => false,
                 'message' => 'Something went wrong while updating the expense category.',
                 'data' => null,
+            ], 500);
+        }
+    }
+
+    public function categorySubCreate(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'category_id'   => ['required','integer','exists:ex_categories,id',],
+                'name'          => ['required','string','min:2','max:255',],
+            ]);
+
+            // Prevent duplicate sub-category under the same category
+            $exists = ExSubCategory::query()
+                ->where('category_id', $validated['category_id'])
+                ->where('name', $validated['name'])
+                ->exists();
+
+            if ($exists) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This sub-category already exists under the selected category.',
+                    'errors' => [
+                        'name' => [
+                            'This sub-category already exists under the selected category.'
+                        ],
+                    ],
+                ], 422);
+            }
+
+            $subCategory = ExSubCategory::create([
+                'category_id' => $validated['category_id'],
+                'name'        => trim($validated['name']),
+            ]);
+
+            // Clear cached categories and sub-categories
+            Cache::forget('expense.categories_subcategories.v1');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expense sub-category created successfully.',
+                'data' => $subCategory,
+            ], 201);
+
+        } catch (\Throwable $e) {
+
+            Log::error('Failed to create expense sub-category.', [
+                'user_id' => auth()->id(),
+                'category_id' => $request->input('category_id'),
+                'name' => $request->input('name'),
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to create expense sub-category.',
+            ], 500);
+        }
+    }
+
+    public function subCategoryDelete(int $id)
+    {
+        try {
+            $subCategory = ExSubCategory::query()
+                ->find($id);
+
+            if (!$subCategory) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Expense sub-category not found.',
+                ], 404);
+            }
+
+            $subCategory->delete();
+
+            // Clear cached category/sub-category data
+            Cache::forget('expense.categories_subcategories.v1');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expense sub-category deleted successfully.',
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            Log::error('Failed to delete expense sub-category.', [
+                'user_id' => auth()->id(),
+                'sub_category_id' => $id,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to delete expense sub-category.',
+            ], 500);
+        }
+    }
+
+    public function subCategoryEdit(Request $request, int $id)
+    {
+        try {
+            $validated = $request->validate([
+                'category_id' => ['required','integer','exists:ex_categories,id',],
+                'name' => ['required','string','min:2','max:255',],
+            ]);
+
+            $subCategory = ExSubCategory::query()->find($id);
+
+            if (!$subCategory) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Expense sub-category not found.',
+                ], 404);
+            }
+
+            $categoryId = (int) $validated['category_id'];
+            $name = trim($validated['name']);
+
+            $duplicate = ExSubCategory::query()
+                ->where('category_id', $categoryId)
+                ->where('name', $name)
+                ->where('id', '!=', $subCategory->id)
+                ->exists();
+
+            if ($duplicate) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This sub-category already exists under the selected category.',
+                    'errors' => [
+                        'name' => [
+                            'This sub-category already exists under the selected category.'
+                        ],
+                    ],
+                ], 422);
+            }
+
+            $subCategory->update([
+                'category_id' => $categoryId,
+                'name' => $name,
+            ]);
+
+            Cache::forget('expense.categories_subcategories.v1');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expense sub-category updated successfully.',
+                'data' => $subCategory->fresh(),
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            Log::error('Failed to update expense sub-category.', [
+                'user_id' => auth()->id(),
+                'sub_category_id' => $id,
+                'request' => $request->all(),
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to update expense sub-category.',
             ], 500);
         }
     }

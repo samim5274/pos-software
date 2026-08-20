@@ -374,6 +374,7 @@ Route::middleware('auth:sanctum')->group(function () {
 // ======================
 Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('expenses')->group(function () {
+
         Route::get('/', [ExpensesController::class, 'index']);
         Route::post('/', [ExpensesController::class, 'store']);
         Route::get('/print/{id}', [ExpensesController::class, 'printExpenses']);
@@ -381,13 +382,22 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{id}', [ExpensesController::class, 'delete']);
         Route::put('/{id}', [ExpensesController::class, 'update']);
 
+        // Categories + Sub Categories
+        Route::get('/category-sub-category', [ExpensesController::class,'getCategoryAndSubCategory']);
+
         Route::prefix('category')->group(function () {
             Route::get('/', [ExpensesController::class, 'getExCategory']);
             Route::post('/', [ExpensesController::class, 'categoryCreate']);
             Route::delete('/{id}', [ExpensesController::class, 'categoryDelete']);
             Route::put('/{id}', [ExpensesController::class, 'categoryEdit']);
         });
-        Route::get('/get-sub-category', [ExpensesController::class, 'getExSubCategory']);
+
+        Route::prefix('sub-category')->group(function () {
+            Route::get('/', [ExpensesController::class, 'getExSubCategory']);
+            Route::post('/', [ExpensesController::class, 'categorySubCreate']);
+            Route::delete('/{id}', [ExpensesController::class, 'subCategoryDelete']);
+            Route::put('/{id}', [ExpensesController::class, 'subCategoryEdit']);
+        });
     });
 });
 
