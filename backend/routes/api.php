@@ -10,6 +10,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\ProfileController;
 
 use App\Http\Controllers\Product\ProductController;
+use App\Http\Controllers\Product\StockController;
 
 use App\Http\Controllers\Customer\CustomerController;
 
@@ -142,6 +143,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 
 
+// ======================
+// Product Stock Routes
+// ======================
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::prefix('stock')->group(function () {
+        Route::post('/{id}', [StockController::class, 'store']);
+    });
+});
 
 
 

@@ -109,10 +109,10 @@
             </div> -->
 
             <!-- Register Link -->
-            <p class="text-center text-gray-400 dark:text-gray-500 text-sm mt-6">
+            <!-- <p class="text-center text-gray-400 dark:text-gray-500 text-sm mt-6">
             New here? 
             <router-link to="/register" class="text-[#1F2937] dark:text-white font-bold hover:text-[#16A34A] dark:hover:text-[#22C55E] transition-colors underline underline-offset-4">Register</router-link>
-            </p>
+            </p> -->
         </form>
 
         <!-- Footer Policy Links -->
