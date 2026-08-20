@@ -29,6 +29,7 @@ const AdminProductSetting = () => import('../components/Dashboard/admin/product/
 
 // Product Stock
 const ProductStock = () => import('../components/Dashboard/admin/stock/product-stock.vue');
+const StockReport = () => import('../components/Dashboard/admin/stock/product-stock.vue');
 
 
 
@@ -125,6 +126,7 @@ const routes = [
     
     // Product stock
     { path: '/admin/product/stock', component: ProductStock, meta: { requiresAuth: true, roles: ['staff', 'admin', 'super_admin'], title: "Product Stock - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" } },
+    { path: '/admin/reports/stock', component: StockReport, meta: { requiresAuth: true, roles: ['staff', 'admin', 'super_admin'], title: "Stock Report's - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" } },
     
     
     
