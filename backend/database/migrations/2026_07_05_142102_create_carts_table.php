@@ -17,9 +17,9 @@ return new class extends Migration
             $table->string('reg')->index();
 
             // Foreign Keys
-            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('restrict');
-
-            $table->foreignId('product_id')->constrained('products')->onDelete('restrict');
+            $table->foreignId('user_id')->nullable()->constrained('users')->restrictOnDelete();
+            $table->foreignId('product_id')->constrained('products')->restrictOnDelete();
+            $table->foreignId('stock_id')->nullable()->constrained('stocks')->restrictOnDelete();
 
             // Product Details (Snapshot)
             $table->integer('quantity')->default(1);
@@ -34,6 +34,7 @@ return new class extends Migration
 
             // Indexing for performance
             $table->index(['user_id', 'reg']);
+            $table->index(['product_id', 'stock_id']);
         });
     }
 

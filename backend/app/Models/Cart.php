@@ -14,6 +14,7 @@ class Cart extends Model
         'reg',
         'user_id',
         'product_id',
+        'stock_id',
         'quantity',
         'price',
         'discount',
@@ -36,6 +37,11 @@ class Cart extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function stock(): BelongsTo
+    {
+        return $this->belongsTo(Stock::class);
     }
 
     // === Accessors & Logic ===

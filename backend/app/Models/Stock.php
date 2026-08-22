@@ -10,11 +10,15 @@ class Stock extends Model
     use HasFactory;
 
     protected $fillable = [
+        'product_id',  // Related Product
+        'batch_no',
         'reg',         // Registration or Batch Number
         'date',        // Transaction Date
-        'product_id',  // Related Product
+        'purchase_price',
+        'sale_price',
         'stockIn',
         'stockOut',
+        'expiry_date',
         'remark',
         'status',      // active, pending, adjusted etc.
     ];
@@ -29,6 +33,11 @@ class Stock extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function cart()
+    {
+        return $this->hasMany(Stock::class);
     }
 
     // e.g Stock::stockInOnly()->get();
