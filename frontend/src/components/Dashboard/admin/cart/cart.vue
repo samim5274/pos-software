@@ -48,6 +48,7 @@
                                                     <th class="py-3 px-4">Product</th>
                                                     <th class="py-3 px-3 text-center">Qty</th>
                                                     <th class="py-3 px-3 text-right">Unit Price</th>
+                                                    <th class="py-3 px-3 text-right">Discount</th>
                                                     <th class="py-3 px-3 text-right">Subtotal</th>
                                                     <th class="py-3 px-3 text-center">Action</th>
                                                 </tr>
@@ -98,6 +99,11 @@
                                                     <td class="py-3 px-3 text-right whitespace-nowrap">
                                                         <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">
                                                             ৳{{ Number(item.price).toLocaleString() }}
+                                                        </span>
+                                                    </td>
+                                                    <td class="py-3 px-3 text-right whitespace-nowrap">
+                                                        <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                                            ৳{{ Number(item.discount).toLocaleString() }}
                                                         </span>
                                                     </td>
                                                     <!-- Subtotal -->
@@ -1014,7 +1020,7 @@ const manualDiscount = computed(() => {
 const vatAmount = computed(() => {
     const vatRate = Math.max(0, Number(form.vat) || 0);
 
-    const taxableAmount = Math.max(0, subtotal.value);
+    const taxableAmount = Math.max(0, subtotal.value - manualDiscount.value);
 
     const amount = taxableAmount * vatRate / 100;
 

@@ -610,12 +610,14 @@ class AdminCartController extends Controller
 
                 $discount = round(min($subtotal, $cartDiscount + $manualDiscount), 2);
 
+                $discountedSubtotal = round(max(0, $subtotal - $discount), 2);
+
                 // ---- Percentage-based VAT ----
                 $vatPercentage = round(min(100, max(0, (float) ($validated['vat'] ?? 0))), 2);
-                $vat = round(($subtotal * $vatPercentage) / 100, 2);
+                $vat = round(($discountedSubtotal * $vatPercentage) / 100, 2);
                 // -------------------------------
 
-                $payableAmount = round(max(0, ($subtotal + $vat) - $discount), 2);
+                $payableAmount = round(max(0, ($discountedSubtotal + $vat)), 2);
 
                 $receivedAmount = round(max(0, (float) ($validated['received_amount'] ?? 0)), 2);
                 $paidAmount     = round(min($receivedAmount, $payableAmount), 2);

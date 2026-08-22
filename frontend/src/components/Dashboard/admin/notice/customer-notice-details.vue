@@ -1,17 +1,15 @@
 <template>
     <div class="min-h-screen bg-white dark:bg-slate-950 transition-colors duration-200">
-        <Header
-            @open-sidebar="sidebarOpen = true"
-            @search="onSearch"
-            :isDark="isDark" @toggle-theme="toggleTheme"
+        <HeaderSection
+            :is-dark="isDark"
+            @toggle-dark="toggleDarkMode"
+            @toggle-menu="toggleMenu"
         />
 
         <div class="flex min-h-[calc(100vh-56px)]">
             <Navbar
-                v-model="activeNavbar"
-                :open="sidebarOpen"
-                @close="sidebarOpen = false"
-            />
+                :mobile-menu="mobileMenu"
+                @close="mobileMenu = false" />
 
             <Message
                 :successMsg="successMsg"
@@ -162,13 +160,20 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import api from '../../../../services/api.js';
+import { useRouter, useRoute } from 'vue-router'
+import api, {makeImg} from '../../../../services/api.js'
 
-import Navbar from "../navbar.vue";
-import Header from "../header.vue";
-import Message from '../../../Message/message.vue';
-import FooterSection from "../../../e-commerce/footer.vue";
+import Navbar from "../../admin/admin-navbar.vue";
+import HeaderSection from "../../admin/admin-header.vue";
+import Message from '../../../Message/message.vue'
+import FooterSection from "../../../footer.vue";
+
+const mobileMenu = ref(false);
+
+function toggleMenu() {
+    mobileMenu.value = !mobileMenu.value;
+}
+
 
 const router = useRouter();
 const route  = useRoute();
@@ -226,29 +231,44 @@ const formatDate = (dateString) => {
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
 };
 
-// =============================
-// Theme
-// =============================
-const isDark      = ref(false);
-const sidebarOpen = ref(false);
 
+
+
+
+
+
+
+
+
+// dark and light mode
+const isDark = ref(false);
 function applyTheme(dark) {
     isDark.value = dark;
-    document.documentElement.classList.toggle('dark', dark);
-    localStorage.setItem('theme', dark ? 'dark' : 'light');
+    document.documentElement.classList.toggle("dark", dark);
+    localStorage.setItem("theme", dark ? "dark" : "light");
 }
 
-function toggleTheme() { applyTheme(!isDark.value); }
-function onSearch() {}
+function toggleTheme() {
+    applyTheme(!isDark.value);
+}
+
+function toggleDarkMode() {
+    isDark.value = !isDark.value;
+    document.documentElement.classList.toggle("dark",isDark.value);
+    localStorage.setItem("theme",isDark.value ? "dark" : "light");
+}
+
 
 onMounted(() => {
     fetchNotice();
-    window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') sidebarOpen.value = false;
+    
+    window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") sidebarOpen.value = false;
     });
-    const saved = localStorage.getItem('theme');
-    if (saved === 'dark') applyTheme(true);
-    else if (saved === 'light') applyTheme(false);
-    else applyTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    const saved = localStorage.getItem("theme");
+    if (saved === "dark") applyTheme(true);
+    else if (saved === "light") applyTheme(false);
+    else applyTheme(window.matchMedia("(prefers-color-scheme: dark)").matches);
 });
 </script>
