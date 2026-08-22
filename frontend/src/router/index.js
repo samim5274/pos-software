@@ -31,6 +31,7 @@ const AdminProductSetting = () => import('../components/Dashboard/admin/product/
 const ProductStock = () => import('../components/Dashboard/admin/stock/product-stock.vue');
 const StockReport = () => import('../components/Dashboard/admin/stock/report-stock.vue');
 const StockReportPrint = () => import('../components/Dashboard/admin/stock/stock-report-print.vue');
+const PurchaseProductStock = () => import('../components/Dashboard/admin/stock/purchase-product.vue');
 
 
 
@@ -129,6 +130,7 @@ const routes = [
     { path: '/admin/product/stock', component: ProductStock, meta: { requiresAuth: true, roles: ['staff', 'admin', 'super_admin'], title: "Product Stock - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" } },
     { path: '/admin/reports/stock', component: StockReport, meta: { requiresAuth: true, roles: ['staff', 'admin', 'super_admin'], title: "Stock Report's - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" } },
     { path: '/admin/stock-report-print', component: StockReportPrint, meta: { requiresAuth: true, roles: ['staff', 'admin', 'super_admin'], title: "Stock Report Print's - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" } },
+    { path: '/admin/product/purchase/stock', component: PurchaseProductStock, meta: { requiresAuth: true, roles: ['staff', 'admin', 'super_admin'], title: "Purchase product stocks - Mercuviax - Pos Software | Bangladesh's Best POS Software Company" } },
     
     
     

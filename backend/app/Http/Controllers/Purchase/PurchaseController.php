@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Ecommerce;
+namespace App\Http\Controllers\Purchase;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -8,25 +8,15 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Validation\Rule;
-use Illuminate\Http\JsonResponse;
 
 use App\Models\User;
 use App\Models\Product;
 use App\Models\Stock;
-use App\Models\Cart;
-use App\Models\Customer;
-use App\Models\Order;
-use App\Services\RegGenerator;
-use App\Http\Requests\CheckOutRequest;
-use App\Mail\OrderMail;
-use App\Models\OrderPayment;
+use App\Models\PurchaseCart;
+use App\Models\PurchaseOrder;
+use App\Services\PurchaseRegGenerator;
 
-
-class AdminCartController extends Controller
+class PurchaseController extends Controller
 {
     public function index()
     {
@@ -38,9 +28,9 @@ class AdminCartController extends Controller
             ], 401);
         }
 
-        $reg = RegGenerator::generateOrderReg($userId);
+        $reg = PurchaseRegGenerator::generateOrderReg($userId);
 
-        $items = Cart::with(['product.images','user'])
+        $items = PurchaseCart::with(['product.images','user'])
             ->where('user_id', $userId)
             ->where('reg', $reg)
             ->get();
@@ -92,7 +82,7 @@ class AdminCartController extends Controller
                     ]);
                 }
 
-                $reg = RegGenerator::generateOrderReg($user->id);
+                $reg = PurchaseRegGenerator::generateOrderReg($user->id);
                 if (!$reg) {
                     throw ValidationException::withMessages([
                         'reg' => 'Failed to generate cart session.',
@@ -106,7 +96,7 @@ class AdminCartController extends Controller
                 // ======================
                 // Cart item find
                 // ======================
-                $query = Cart::where('reg', $reg)->where('product_id', $product->id);
+                $query = PurchaseCart::where('reg', $reg)->where('product_id', $product->id);
 
                 $cartItem = $query->first();
 
@@ -129,7 +119,7 @@ class AdminCartController extends Controller
                     ]);
 
                 } else {
-                    $cartItem = Cart::create([
+                    $cartItem = PurchaseCart::create([
                         'reg'               => $reg,
                         'user_id'           => $user->id,
                         'product_id'        => $product->id,
@@ -147,14 +137,14 @@ class AdminCartController extends Controller
 
                 if($stock) {
                     $stock->update([
-                        'stockOut' => $newQty,
+                        'stockIn' => $newQty,
                     ]);
                 } else {
                     Stock::Create([
                         'reg' => $reg,
                         'date' => now()->toDateString(),
                         'product_id' => $product->id,
-                        'stockOut' => $newQty,
+                        'stockIn' => $newQty,
                         'remark' => 'add to cart by : '.  $user->name,
                     ]);
                 }
@@ -248,7 +238,7 @@ class AdminCartController extends Controller
                     ]);
                 }
 
-                $reg = RegGenerator::generateOrderReg($user->id);
+                $reg = PurchaseRegGenerator::generateOrderReg($user->id);
                 if (!$reg) {
                     throw ValidationException::withMessages([
                         'reg' => 'Failed to generate cart session.',
@@ -262,7 +252,7 @@ class AdminCartController extends Controller
                 // ======================
                 // Cart item find
                 // ======================
-                $query = Cart::where('reg', $reg)->where('product_id', $product->id);
+                $query = PurchaseCart::where('reg', $reg)->where('product_id', $product->id);
 
                 $cartItem = $query->first();
 
@@ -284,7 +274,7 @@ class AdminCartController extends Controller
                         'total_amount'    => $finalPrice,
                     ]);
                 } else {
-                    $cartItem = Cart::create([
+                    $cartItem = PurchaseCart::create([
                         'reg'               => $reg,
                         'user_id'           => $user->id,
                         'product_id'        => $product->id,
@@ -300,14 +290,14 @@ class AdminCartController extends Controller
 
                 if($stock) {
                     $stock->update([
-                        'stockOut' => $newQty,
+                        'stockIn' => $newQty,
                     ]);
                 } else {
                     Stock::Create([
                         'reg' => $reg,
                         'date' => now()->toDateString(),
                         'product_id' => $product->id,
-                        'stockOut' => $newQty,
+                        'stockIn' => $newQty,
                         'remark' => 'add to cart by : '.  $user->name,
                     ]);
                 }
@@ -363,7 +353,7 @@ class AdminCartController extends Controller
         try {
             return DB::transaction(function () use ($request, $reg, $product_id) {
 
-                $cartItem = Cart::where('reg', $reg)
+                $cartItem = PurchaseCart::where('reg', $reg)
                     ->where('product_id', $product_id)
                     ->lockForUpdate()
                     ->first();
@@ -394,7 +384,7 @@ class AdminCartController extends Controller
 
                 if ($stock) {
                     $stock->update([
-                        'stockOut' => $newQty,
+                        'stockIn' => $newQty,
                     ]);
                 }
 
@@ -411,7 +401,7 @@ class AdminCartController extends Controller
 
                     if ($difference > 0) {
                         // Cart quantity increased
-                        $product->decrement(
+                        $product->increment(
                             'stock_quantity',
                             $difference
                         );
@@ -467,7 +457,7 @@ class AdminCartController extends Controller
                 ], 422);
             }
 
-            $cartItem = Cart::where('id', $cart_id)
+            $cartItem = PurchaseCart::where('id', $cart_id)
                 ->where('user_id', $user->id)
                 ->where('reg', $reg)
                 ->where('product_id', $product_id)
@@ -482,7 +472,7 @@ class AdminCartController extends Controller
 
             $cartItem->delete();
 
-            $remaining = Cart::where('user_id', $user->id)
+            $remaining = PurchaseCart::where('user_id', $user->id)
                 ->where('reg', $reg)
                 ->count();
 
@@ -497,7 +487,7 @@ class AdminCartController extends Controller
             $product = Product::lockForUpdate()->find($product_id);
 
             if($product){
-                $product->increment('stock_quantity', $cartItem->quantity);
+                $product->decrement('stock_quantity', $cartItem->quantity);
             }
 
             return response()->json([
@@ -523,7 +513,7 @@ class AdminCartController extends Controller
     public function getCartItem($reg)
     {
         try {
-            $items = Cart::with(['product.images','user'])
+            $items = PurchaseCart::with(['product.images','user'])
                         ->where('reg', $reg)->get();
 
             if ($items->isEmpty()) {
@@ -612,10 +602,13 @@ class AdminCartController extends Controller
 
                 // ---- Percentage-based VAT ----
                 $vatPercentage = round(min(100, max(0, (float) ($validated['vat'] ?? 0))), 2);
-                $vat = round(($subtotal * $vatPercentage) / 100, 2);
+
+                $taxableAmount = round(max(0, $subtotal - $discount), 2);
+
+                $vat = round(($taxableAmount * $vatPercentage) / 100, 2);
                 // -------------------------------
 
-                $payableAmount = round(max(0, ($subtotal + $vat) - $discount), 2);
+                $payableAmount = round(max(0, $taxableAmount + $vat), 2);
 
                 $receivedAmount = round(max(0, (float) ($validated['received_amount'] ?? 0)), 2);
                 $paidAmount     = round(min($receivedAmount, $payableAmount), 2);
@@ -761,5 +754,4 @@ class AdminCartController extends Controller
             ], 500);
         }
     }
-
 }

@@ -23,6 +23,8 @@ use App\Http\Controllers\Ecommerce\AdminCartController;
 use App\Http\Controllers\Ecommerce\RatingController;
 use App\Http\Controllers\Ecommerce\SliderController;
 
+use App\Http\Controllers\Purchase\PurchaseController;
+
 use App\Http\Controllers\Order\OrderController;
 use App\Http\Controllers\Order\CouponController;
 
@@ -151,6 +153,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/', [StockController::class, 'index']);
         Route::get('/report', [StockController::class, 'stockReport']);
         Route::post('/{id}', [StockController::class, 'store']);
+    });
+
+    Route::prefix('purchase')->group(function () {
+        Route::get('/', [PurchaseController::class, 'index']);
+        Route::get('/add-to-cart', [PurchaseController::class, 'addToCard']);
+        Route::post('/add-to-cart-search', [PurchaseController::class, 'adminAddToCartSearch']);
+        Route::get('/{reg}', [PurchaseController::class, 'getCartItem']);
+        Route::post('/add-to-cart', [PurchaseController::class, 'adminAddToCart']);
+        Route::post('/qty-update/{reg}/{product_id}', [PurchaseController::class, 'updateQty']);
+        Route::post('/remove-to-cart/{cart_id}/{reg}/{product_id}', [PurchaseController::class, 'removeToCart']);
     });
 });
 

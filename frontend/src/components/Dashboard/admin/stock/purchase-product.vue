@@ -25,7 +25,7 @@
                         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                             
                             <!-- ================= 2. RIGHT SIDE: CART TABLE (7 Columns) ================= -->
-                            <div class="lg:col-span-8 flex flex-col gap-3">
+                            <div class="lg:col-span-8 flex flex-col gap-3 pb-4">
 
                                 <!-- Cart Title Header -->
                                 <div class="flex items-center justify-between">
@@ -39,7 +39,7 @@
                                 </div>
                                 <!-- Cart Table Container -->
                                 <div class="w-full overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/40 shadow-sm">
-                                    <div class="max-h-[30.7rem] overflow-y-auto overflow-x-auto custom-scrollbar">
+                                    <div class="max-h-[83rem] overflow-y-auto overflow-x-auto custom-scrollbar">
                                         <table class="w-full text-left border-collapse">
 
                                             <!-- Table Header -->
@@ -281,355 +281,335 @@
                                         </table>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
 
-                        <div class="grid lg:grid-cols-12 gap-8 mt-6">
-
-                            <div class="lg:col-span-8 space-y-5">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white dark:bg-[#0F172E] p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                                    <!-- Phone Number Input -->
-                                    <div class="space-y-1.5">
-                                        <label for="phone_number" class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                            Customer Phone Number
-                                        </label>
-                                        <input type="tel" id="phone_number" name="phone_number" v-model="form.phone_number" placeholder="017XXXXXXXX"
-                                            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#16a34a] dark:focus:ring-[#f97316] focus:border-transparent transition-all" />
-                                    </div>
-                                    <div class="space-y-1.5">
-                                        <label for="customer_name" class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                            Customer Name
-                                        </label>
-                                        <input type="text" id="customer_name" name="customer_name" v-model="form.customer_name" placeholder="Mr. Hossain"
-                                            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#16a34a] dark:focus:ring-[#f97316] focus:border-transparent transition-all" />
-                                    </div>
-                                
-                                    <!-- Payment Method Selection -->
-                                    <div class="space-y-1 md:col-span-2 border-t border-slate-100 dark:border-slate-800 pt-2">
-                                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-                                            Select Payment Method
-                                        </label>
-                                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                                            <label class="cursor-pointer">
-                                                <input type="radio" v-model="form.payment_method" value="cash" class="peer hidden" />
-                                                <div class="text-center p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 peer-checked:border-[#16a34a] dark:peer-checked:border-[#f97316] peer-checked:bg-[#16a34a]/10 dark:peer-checked:bg-[#f97316]/20 peer-checked:text-[#16a34a] dark:peer-checked:text-[#fb923c] transition-all">
-                                                    Cash
-                                                </div>
+                                <!-- Order Summary Card -->
+                                <div class="lg:col-span-4 pb-4">
+                                    
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white dark:bg-[#0F172E] p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                                        <!-- Phone Number Input -->
+                                        <div class="space-y-1.5">
+                                            <label for="phone_number" class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                                Customer Phone Number
                                             </label>
-                                            <label class="cursor-pointer">
-                                                <input type="radio" v-model="form.payment_method" value="bkash" class="peer hidden" />
-                                                <div class="text-center p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 peer-checked:border-[#16a34a] dark:peer-checked:border-[#f97316] peer-checked:bg-[#16a34a]/10 dark:peer-checked:bg-[#f97316]/20 peer-checked:text-[#16a34a] dark:peer-checked:text-[#fb923c] transition-all">
-                                                    bKash
-                                                </div>
-                                            </label>
-                                            <label class="cursor-pointer">
-                                                <input type="radio" v-model="form.payment_method" value="nagad" class="peer hidden" />
-                                                <div class="text-center p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 peer-checked:border-[#16a34a] dark:peer-checked:border-[#f97316] peer-checked:bg-[#16a34a]/10 dark:peer-checked:bg-[#f97316]/20 peer-checked:text-[#16a34a] dark:peer-checked:text-[#fb923c] transition-all">
-                                                    Nagad
-                                                </div>
-                                            </label>
-                                            <label class="cursor-pointer">
-                                                <input type="radio" v-model="form.payment_method" value="rocket" class="peer hidden" />
-                                                <div class="text-center p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 peer-checked:border-[#16a34a] dark:peer-checked:border-[#f97316] peer-checked:bg-[#16a34a]/10 dark:peer-checked:bg-[#f97316]/20 peer-checked:text-[#16a34a] dark:peer-checked:text-[#fb923c] transition-all">
-                                                    Rocket
-                                                </div>
-                                            </label>
-                                            <label class="cursor-pointer">
-                                                <input type="radio" v-model="form.payment_method" value="card" class="peer hidden" />
-                                                <div class="text-center p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 peer-checked:border-[#16a34a] dark:peer-checked:border-[#f97316] peer-checked:bg-[#16a34a]/10 dark:peer-checked:bg-[#f97316]/20 peer-checked:text-[#16a34a] dark:peer-checked:text-[#fb923c] transition-all">
-                                                    Card
-                                                </div>
-                                            </label>
-                                            <label class="cursor-pointer">
-                                                <input type="radio" v-model="form.payment_method" value="bank" class="peer hidden" />
-                                                <div class="text-center p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 peer-checked:border-[#16a34a] dark:peer-checked:border-[#f97316] peer-checked:bg-[#16a34a]/10 dark:peer-checked:bg-[#f97316]/20 peer-checked:text-[#16a34a] dark:peer-checked:text-[#fb923c] transition-all">
-                                                    Bank
-                                                </div>
-                                            </label>
+                                            <input type="tel" id="phone_number" name="phone_number" v-model="form.phone_number" placeholder="017XXXXXXXX"
+                                                class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#16a34a] dark:focus:ring-[#f97316] focus:border-transparent transition-all" />
                                         </div>
-                                    </div>
-
-                                    <!-- VAT Input -->
-                                    <div class="space-y-1.5 ">
-                                        <label for="vat" class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                            VAT (%)
-                                        </label>
-                                        <div class="relative flex">
-                                            <input
-                                                v-model.number="form.vat"
-                                                type="number"
-                                                id="vat"
-                                                name="vat"
-                                                placeholder="0"
-                                                min="0"
-                                                max="100"
-                                                step="any"
-                                                class="w-full pl-3.5 pr-12 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#16a34a] dark:focus:ring-[#f97316] focus:border-transparent transition-all"
-                                            />
-                                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">%</span>
+                                        <div class="space-y-1.5">
+                                            <label for="customer_name" class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                                Customer Name
+                                            </label>
+                                            <input type="text" id="customer_name" name="customer_name" v-model="form.customer_name" placeholder="Mr. Hossain"
+                                                class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#16a34a] dark:focus:ring-[#f97316] focus:border-transparent transition-all" />
                                         </div>
-                                    </div>
-
-                                    <!-- Discount Input -->
-                                    <div class="space-y-1.5">
-                                        <label for="discount" class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                            Discount
-                                        </label>
-                                        <div class="relative flex">
-                                            <input
-                                                v-model.number="form.discount"
-                                                type="number"
-                                                id="discount"
-                                                name="discount"
-                                                placeholder="0.00"
-                                                min="0"
-                                                :max="subtotal"
-                                                step="any"
-                                                class="w-full pl-3.5 pr-12 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#16a34a] dark:focus:ring-[#f97316] focus:border-transparent transition-all"
-                                            />
-                                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">৳</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Received Amount Input -->
-                                    <div class="space-y-1.5 md:col-span-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                                        <label for="received_amount" class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                            Received Amount (৳)
-                                        </label>
-                                        <div class="relative">
-                                            <input
-                                                v-model.number="form.received_amount" @keydown.enter="handleCheckout"
-                                                type="number"
-                                                id="received_amount"
-                                                name="received_amount"
-                                                placeholder="0.00"
-                                                min="0"
-                                                step="any"
-                                                class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-base font-semibold text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#16a34a] dark:focus:ring-[#f97316] focus:border-transparent transition-all"
-                                            />
-                                        </div>
-                                    </div>
-
-                                </div>
-                            </div>
-
-                            <!-- Order Summary Card -->
-                            <div class="lg:col-span-4">
-                                <div
-                                    class="sticky top-10 bg-white dark:bg-[#0f172e] rounded-2xl p-6 sm:p-8 shadow-md border border-slate-200/80 dark:border-slate-700/60 transition-all"
-                                >
-                                    <!-- Header -->
-                                    <h2
-                                        class="text-xl font-black text-slate-900 dark:text-white mb-6 flex items-center gap-2"
-                                    >
-                                        Order Summary
-
-                                        <span
-                                            class="w-2.5 h-2.5 rounded-full bg-[#16a34a] dark:bg-[#F97316] animate-pulse"
-                                        ></span>
-                                    </h2>
-
-                                    <div class="space-y-4">
-
-                                        <!-- ========================= -->
-                                        <!-- Subtotal -->
-                                        <!-- ========================= -->
-                                        <div class="flex justify-between items-center text-sm">
-                                            <span class="text-slate-500 dark:text-slate-400 font-medium">
-                                                Subtotal
-                                            </span>
-
-                                            <span class="text-slate-900 dark:text-white font-bold">
-                                                ৳ {{ formatMoney(subtotal) }}
-                                            </span>
+                                    
+                                        <!-- Payment Method Selection -->
+                                        <div class="space-y-1 md:col-span-2 border-t border-slate-100 dark:border-slate-800 pt-2">
+                                            <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                                                Select Payment Method
+                                            </label>
+                                            <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                                                <label class="cursor-pointer">
+                                                    <input type="radio" v-model="form.payment_method" value="cash" class="peer hidden" />
+                                                    <div class="text-center p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 peer-checked:border-[#16a34a] dark:peer-checked:border-[#f97316] peer-checked:bg-[#16a34a]/10 dark:peer-checked:bg-[#f97316]/20 peer-checked:text-[#16a34a] dark:peer-checked:text-[#fb923c] transition-all">
+                                                        Cash
+                                                    </div>
+                                                </label>
+                                                <label class="cursor-pointer">
+                                                    <input type="radio" v-model="form.payment_method" value="bkash" class="peer hidden" />
+                                                    <div class="text-center p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 peer-checked:border-[#16a34a] dark:peer-checked:border-[#f97316] peer-checked:bg-[#16a34a]/10 dark:peer-checked:bg-[#f97316]/20 peer-checked:text-[#16a34a] dark:peer-checked:text-[#fb923c] transition-all">
+                                                        bKash
+                                                    </div>
+                                                </label>
+                                                <label class="cursor-pointer">
+                                                    <input type="radio" v-model="form.payment_method" value="nagad" class="peer hidden" />
+                                                    <div class="text-center p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 peer-checked:border-[#16a34a] dark:peer-checked:border-[#f97316] peer-checked:bg-[#16a34a]/10 dark:peer-checked:bg-[#f97316]/20 peer-checked:text-[#16a34a] dark:peer-checked:text-[#fb923c] transition-all">
+                                                        Nagad
+                                                    </div>
+                                                </label>
+                                                <label class="cursor-pointer">
+                                                    <input type="radio" v-model="form.payment_method" value="rocket" class="peer hidden" />
+                                                    <div class="text-center p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 peer-checked:border-[#16a34a] dark:peer-checked:border-[#f97316] peer-checked:bg-[#16a34a]/10 dark:peer-checked:bg-[#f97316]/20 peer-checked:text-[#16a34a] dark:peer-checked:text-[#fb923c] transition-all">
+                                                        Rocket
+                                                    </div>
+                                                </label>
+                                                <label class="cursor-pointer">
+                                                    <input type="radio" v-model="form.payment_method" value="card" class="peer hidden" />
+                                                    <div class="text-center p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 peer-checked:border-[#16a34a] dark:peer-checked:border-[#f97316] peer-checked:bg-[#16a34a]/10 dark:peer-checked:bg-[#f97316]/20 peer-checked:text-[#16a34a] dark:peer-checked:text-[#fb923c] transition-all">
+                                                        Card
+                                                    </div>
+                                                </label>
+                                                <label class="cursor-pointer">
+                                                    <input type="radio" v-model="form.payment_method" value="bank" class="peer hidden" />
+                                                    <div class="text-center p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 peer-checked:border-[#16a34a] dark:peer-checked:border-[#f97316] peer-checked:bg-[#16a34a]/10 dark:peer-checked:bg-[#f97316]/20 peer-checked:text-[#16a34a] dark:peer-checked:text-[#fb923c] transition-all">
+                                                        Bank
+                                                    </div>
+                                                </label>
+                                            </div>
                                         </div>
 
-
-                                        <!-- ========================= -->
-                                        <!-- Total Points -->
-                                        <!-- ========================= -->
-                                        <div class="flex justify-between items-center text-sm">
-                                            <span class="text-slate-500 dark:text-slate-400 font-medium">
-                                                Total Points
-                                            </span>
-
-                                            <span
-                                                class="text-[#16a34a] dark:text-[#fb923c] font-bold bg-[#16a34a]/10 dark:bg-[#f97316]/20 px-2.5 py-1 rounded-lg text-xs flex items-center gap-1"
-                                            >
-                                                <i class="fa-solid fa-star text-[10px]"></i>
-
-                                                {{ formatPoints(totalPoint) }} pts
-                                            </span>
+                                        <!-- VAT Input -->
+                                        <div class="space-y-1.5 ">
+                                            <label for="vat" class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                                VAT (%)
+                                            </label>
+                                            <div class="relative flex">
+                                                <input
+                                                    v-model.number="form.vat"
+                                                    type="number"
+                                                    id="vat"
+                                                    name="vat"
+                                                    placeholder="0"
+                                                    min="0"
+                                                    max="100"
+                                                    step="any"
+                                                    class="w-full pl-3.5 pr-12 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#16a34a] dark:focus:ring-[#f97316] focus:border-transparent transition-all"
+                                                />
+                                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">%</span>
+                                            </div>
                                         </div>
 
-
-                                        <!-- ========================= -->
-                                        <!-- Discount -->
-                                        <!-- ========================= -->
-                                        <div class="flex justify-between items-center text-sm">
-                                            <span class="text-slate-500 dark:text-slate-400 font-medium">
+                                        <!-- Discount Input -->
+                                        <div class="space-y-1.5">
+                                            <label for="discount" class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
                                                 Discount
-                                            </span>
-
-                                            <span class="text-red-500 dark:text-red-400 font-bold">
-                                                - ৳ {{ formatMoney(manualDiscount) }}
-                                            </span>
-                                        </div>
-
-
-                                        <!-- ========================= -->
-                                        <!-- VAT -->
-                                        <!-- ========================= -->
-                                        <div class="flex justify-between items-center text-sm">
-                                            <span class="text-slate-500 dark:text-slate-400 font-medium">
-                                                VAT ({{ formatRate(form.vat) }}%)
-                                            </span>
-
-                                            <span class="text-slate-900 dark:text-white font-bold">
-                                                + ৳ {{ formatMoney(vatAmount) }}
-                                            </span>
-                                        </div>
-
-
-                                        <!-- Divider -->
-                                        <div
-                                            class="h-px bg-slate-100 dark:bg-slate-700 my-5"
-                                        ></div>
-
-
-                                        <!-- ========================= -->
-                                        <!-- Total Payable -->
-                                        <!-- ========================= -->
-                                        <div class="flex justify-between items-end gap-4">
-
-                                            <span
-                                                class="text-base font-bold text-slate-900 dark:text-white mb-1"
-                                            >
-                                                Total Payable
-                                            </span>
-
-                                            <div class="text-right">
-
-                                                <p
-                                                    class="text-3xl font-black text-[#16a34a] dark:text-[#F97316] tracking-tight whitespace-nowrap"
-                                                >
-                                                    ৳ {{ formatMoney(totalPayable) }}
-                                                </p>
-
-                                                <p
-                                                    class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1"
-                                                >
-                                                    Including VAT
-                                                </p>
-
+                                            </label>
+                                            <div class="relative flex">
+                                                <input
+                                                    v-model.number="form.discount"
+                                                    type="number"
+                                                    id="discount"
+                                                    name="discount"
+                                                    placeholder="0.00"
+                                                    min="0"
+                                                    :max="subtotal"
+                                                    step="any"
+                                                    class="w-full pl-3.5 pr-12 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#16a34a] dark:focus:ring-[#f97316] focus:border-transparent transition-all"
+                                                />
+                                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">৳</span>
                                             </div>
                                         </div>
 
-
-                                        <!-- ========================= -->
-                                        <!-- Received Amount -->
-                                        <!-- ========================= -->
-                                        <div
-                                            class="flex justify-between items-center text-sm pt-3"
-                                        >
-                                            <span class="text-slate-500 dark:text-slate-400 font-medium">
-                                                Received
-                                            </span>
-
-                                            <span class="font-bold text-slate-900 dark:text-white">
-                                                ৳ {{ formatMoney(receivedAmount) }}
-                                            </span>
-                                        </div>
-
-
-                                        <!-- ========================= -->
-                                        <!-- Return / Change Amount -->
-                                        <!-- ========================= -->
-                                        <div
-                                            v-if="changeAmount > 0"
-                                            class="mt-2 px-3 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20"
-                                        >
-                                            <div class="flex justify-between items-center text-sm">
-
-                                                <span
-                                                    class="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-2"
-                                                >
-                                                    <i class="fa-solid fa-arrow-rotate-left text-xs"></i>
-                                                    Return
-                                                </span>
-
-                                                <span
-                                                    class="text-emerald-700 dark:text-emerald-400 font-black"
-                                                >
-                                                    ৳ {{ formatMoney(changeAmount) }}
-                                                </span>
-
+                                        <!-- Received Amount Input -->
+                                        <div class="space-y-1.5 md:col-span-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                                            <label for="received_amount" class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                                Received Amount (৳)
+                                            </label>
+                                            <div class="relative">
+                                                <input
+                                                    v-model.number="form.received_amount" @keydown.enter="handleCheckout"
+                                                    type="number"
+                                                    id="received_amount"
+                                                    name="received_amount"
+                                                    placeholder="0.00"
+                                                    min="0"
+                                                    step="any"
+                                                    class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-base font-semibold text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#16a34a] dark:focus:ring-[#f97316] focus:border-transparent transition-all"
+                                                />
                                             </div>
-                                        </div>
-
-
-                                        <!-- ========================= -->
-                                        <!-- Due Amount -->
-                                        <!-- ========================= -->
-                                        <div
-                                            v-if="dueAmount > 0"
-                                            class="mt-2 px-3 py-2.5 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20"
-                                        >
-                                            <div class="flex justify-between items-center text-sm">
-
-                                                <span
-                                                    class="text-red-700 dark:text-red-400 font-semibold flex items-center gap-2"
-                                                >
-                                                    <i class="fa-solid fa-clock text-xs"></i>
-                                                    Due
-                                                </span>
-
-                                                <span
-                                                    class="text-red-700 dark:text-red-400 font-black"
-                                                >
-                                                    ৳ {{ formatMoney(dueAmount) }}
-                                                </span>
-
-                                            </div>
-                                        </div>
-
-
-                                        <!-- ========================= -->
-                                        <!-- Fully Paid Status -->
-                                        <!-- ========================= -->
-                                        <div
-                                            v-if="
-                                                totalPayable > 0 &&
-                                                receivedAmount >= totalPayable &&
-                                                changeAmount === 0
-                                            "
-                                            class="mt-3 flex items-center justify-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400"
-                                        >
-                                            <i class="fa-solid fa-circle-check"></i>
-
-                                            Fully Paid
                                         </div>
 
                                     </div>
+
+                                    <div class="sticky mt-4 top-10 bg-white dark:bg-[#0f172e] rounded-2xl p-6 sm:p-8 shadow-md border border-slate-200/80 dark:border-slate-700/60 transition-all">
+                                        <!-- Header -->
+                                        <h2
+                                            class="text-xl font-black text-slate-900 dark:text-white mb-6 flex items-center gap-2"
+                                        >
+                                            Order Summary
+
+                                            <span
+                                                class="w-2.5 h-2.5 rounded-full bg-[#16a34a] dark:bg-[#F97316] animate-pulse"
+                                            ></span>
+                                        </h2>
+
+                                        <div class="space-y-4">
+
+                                            <!-- ========================= -->
+                                            <!-- Subtotal -->
+                                            <!-- ========================= -->
+                                            <div class="flex justify-between items-center text-sm">
+                                                <span class="text-slate-500 dark:text-slate-400 font-medium">
+                                                    Subtotal
+                                                </span>
+
+                                                <span class="text-slate-900 dark:text-white font-bold">
+                                                    ৳ {{ formatMoney(subtotal) }}
+                                                </span>
+                                            </div>
+
+
+                                            <!-- ========================= -->
+                                            <!-- Total Points -->
+                                            <!-- ========================= -->
+                                            <div class="flex justify-between items-center text-sm">
+                                                <span class="text-slate-500 dark:text-slate-400 font-medium">
+                                                    Total Points
+                                                </span>
+
+                                                <span
+                                                    class="text-[#16a34a] dark:text-[#fb923c] font-bold bg-[#16a34a]/10 dark:bg-[#f97316]/20 px-2.5 py-1 rounded-lg text-xs flex items-center gap-1"
+                                                >
+                                                    <i class="fa-solid fa-star text-[10px]"></i>
+
+                                                    {{ formatPoints(totalPoint) }} pts
+                                                </span>
+                                            </div>
+
+
+                                            <!-- ========================= -->
+                                            <!-- Discount -->
+                                            <!-- ========================= -->
+                                            <div class="flex justify-between items-center text-sm">
+                                                <span class="text-slate-500 dark:text-slate-400 font-medium">
+                                                    Discount
+                                                </span>
+
+                                                <span class="text-red-500 dark:text-red-400 font-bold">
+                                                    - ৳ {{ formatMoney(manualDiscount) }}
+                                                </span>
+                                            </div>
+
+
+                                            <!-- ========================= -->
+                                            <!-- VAT -->
+                                            <!-- ========================= -->
+                                            <div class="flex justify-between items-center text-sm">
+                                                <span class="text-slate-500 dark:text-slate-400 font-medium">
+                                                    VAT ({{ formatRate(form.vat) }}%)
+                                                </span>
+
+                                                <span class="text-slate-900 dark:text-white font-bold">
+                                                    + ৳ {{ formatMoney(vatAmount) }}
+                                                </span>
+                                            </div>
+
+
+                                            <!-- Divider -->
+                                            <div
+                                                class="h-px bg-slate-100 dark:bg-slate-700 my-5"
+                                            ></div>
+
+
+                                            <!-- ========================= -->
+                                            <!-- Total Payable -->
+                                            <!-- ========================= -->
+                                            <div class="flex justify-between items-end gap-4">
+
+                                                <span
+                                                    class="text-base font-bold text-slate-900 dark:text-white mb-1"
+                                                >
+                                                    Total Payable
+                                                </span>
+
+                                                <div class="text-right">
+
+                                                    <p
+                                                        class="text-3xl font-black text-[#16a34a] dark:text-[#F97316] tracking-tight whitespace-nowrap"
+                                                    >
+                                                        ৳ {{ formatMoney(totalPayable) }}
+                                                    </p>
+
+                                                    <p
+                                                        class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1"
+                                                    >
+                                                        Including VAT
+                                                    </p>
+
+                                                </div>
+                                            </div>
+
+
+                                            <!-- ========================= -->
+                                            <!-- Received Amount -->
+                                            <!-- ========================= -->
+                                            <div
+                                                class="flex justify-between items-center text-sm pt-3"
+                                            >
+                                                <span class="text-slate-500 dark:text-slate-400 font-medium">
+                                                    Received
+                                                </span>
+
+                                                <span class="font-bold text-slate-900 dark:text-white">
+                                                    ৳ {{ formatMoney(receivedAmount) }}
+                                                </span>
+                                            </div>
+
+
+                                            <!-- ========================= -->
+                                            <!-- Return / Change Amount -->
+                                            <!-- ========================= -->
+                                            <div
+                                                v-if="changeAmount > 0"
+                                                class="mt-2 px-3 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20"
+                                            >
+                                                <div class="flex justify-between items-center text-sm">
+
+                                                    <span
+                                                        class="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-2"
+                                                    >
+                                                        <i class="fa-solid fa-arrow-rotate-left text-xs"></i>
+                                                        Return
+                                                    </span>
+
+                                                    <span
+                                                        class="text-emerald-700 dark:text-emerald-400 font-black"
+                                                    >
+                                                        ৳ {{ formatMoney(changeAmount) }}
+                                                    </span>
+
+                                                </div>
+                                            </div>
+
+
+                                            <!-- ========================= -->
+                                            <!-- Due Amount -->
+                                            <!-- ========================= -->
+                                            <div
+                                                v-if="dueAmount > 0"
+                                                class="mt-2 px-3 py-2.5 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20"
+                                            >
+                                                <div class="flex justify-between items-center text-sm">
+
+                                                    <span
+                                                        class="text-red-700 dark:text-red-400 font-semibold flex items-center gap-2"
+                                                    >
+                                                        <i class="fa-solid fa-clock text-xs"></i>
+                                                        Due
+                                                    </span>
+
+                                                    <span
+                                                        class="text-red-700 dark:text-red-400 font-black"
+                                                    >
+                                                        ৳ {{ formatMoney(dueAmount) }}
+                                                    </span>
+
+                                                </div>
+                                            </div>
+
+
+                                            <!-- ========================= -->
+                                            <!-- Fully Paid Status -->
+                                            <!-- ========================= -->
+                                            <div
+                                                v-if="
+                                                    totalPayable > 0 &&
+                                                    receivedAmount >= totalPayable &&
+                                                    changeAmount === 0
+                                                "
+                                                class="mt-3 flex items-center justify-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400"
+                                            >
+                                                <i class="fa-solid fa-circle-check"></i>
+
+                                                Fully Paid
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                    
                                 </div>
                             </div>
-
                         </div>
 
-                    </div>
-                    
-                    <div class="mx-auto  sm:px-6 lg:px-8 pb-5">
-                        <button @click="handleCheckout" :disabled="checkoutLoading || !cartItems?.length" class="w-full mt-8 bg-[#16a34a] hover:bg-[#15803d] dark:bg-[#F97316] hover:dark:bg-[#d85a00] text-white py-4 rounded-xl font-black text-base tracking-wide transition-all shadow-lg shadow-[#16a34a]/20 dark:shadow-none flex items-center justify-center gap-3 group active:scale-[0.99]">
-                            <span v-if="checkoutLoading">
-                                <i class="fa-solid fa-spinner fa-spin mr-2"></i>
-                                Processing...
-                            </span>
-
-                            <span v-else>
-                                Checkout Now
-                                <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
-                            </span>
-                        </button>
                     </div>
 
                 </div>
@@ -642,13 +622,12 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
-import api, { makeImg } from "../../../../services/api.js";
+import api from "../../../../services/api.js";
 import { useRouter } from 'vue-router';
 import { useCartStore } from './cart.js';
 
 import AdminNavbar from '../admin-navbar.vue';
 import AdminHeader from '../admin-header.vue';
-import AdminMain from '../admin-main.vue';
 import Message from '../../../Message/message.vue';
 import FooterSection from "../../../footer.vue";
 
@@ -766,7 +745,7 @@ async function addToCart(product) {
     
     try {
         isAddingToCart.value = true;
-        const res = await api.post("/admin/cart/add-to-cart", cartData);
+        const res = await api.post("/purchase/add-to-cart", cartData);
         if (res.data?.success) {
             errorMsg.value = null;
             CartItem.value = res.data.data;
@@ -812,7 +791,7 @@ async function handleSearch() {
     
     try {
         isAddingToCart.value = true;
-        const res = await api.post("/admin/cart/add-to-cart-search", cartData);
+        const res = await api.post("/purchase/add-to-cart-search", cartData);
         if (res.data?.success) {
             errorMsg.value = null;
             const product = res.data.data;
@@ -850,7 +829,7 @@ const cartItems = ref([]);
 async function getCartItems() {
     loading.value = true
     try {
-        const res = await api.get(`/admin/cart`);
+        const res = await api.get(`/purchase`);
         cartItems.value = res.data.data;
     } catch (err) {
         console.error(err);
@@ -909,10 +888,6 @@ const formatMoney = (value) => {
     });
 };
 
-
-/**
- * Format points.
- */
 const formatPoints = (value) => {
     const number = Number(value) || 0;
 
@@ -920,7 +895,6 @@ const formatPoints = (value) => {
         maximumFractionDigits: 2,
     });
 };
-
 
 /**
  * Format percentage rate.
@@ -1014,7 +988,7 @@ const manualDiscount = computed(() => {
 const vatAmount = computed(() => {
     const vatRate = Math.max(0, Number(form.vat) || 0);
 
-    const taxableAmount = Math.max(0, subtotal.value - manualDiscount.value);
+    const taxableAmount = Math.max(0, subtotal.value);
 
     const amount = taxableAmount * vatRate / 100;
 
@@ -1131,7 +1105,7 @@ function queueQtyUpdate(item) {
 
 async function updateQty(item) {
     try {
-        const res = await api.post(`/admin/cart/qty-update/${item.reg}/${item.product_id}`, {
+        const res = await api.post(`/purchase/qty-update/${item.reg}/${item.product_id}`, {
             quantity: Number(item.quantity),
         });
         if (res?.data?.status === 'success') {
@@ -1153,7 +1127,7 @@ async function updateQty(item) {
 
 async function remove(item) {
     try {
-        const res = await api.post(`/admin/cart/remove-to-cart/${item.id}/${item.reg}/${item.product_id}`, {
+        const res = await api.post(`/purchase/remove-to-cart/${item.id}/${item.reg}/${item.product_id}`, {
             quantity: Number(item.quantity),
         });
         if (res?.data?.status === 'success') {
@@ -1271,7 +1245,7 @@ const handleCheckout = async () => {
     try {
         checkoutLoading.value = true;
 
-        const res = await api.post(`/admin/cart/checkout/${reg}`, checkoutData );
+        const res = await api.post(`/purchase/checkout/${reg}`, checkoutData );
 
         if (res.data?.success) {
             successMsg.value = res.data?.message || "Order placed successfully.";
@@ -1354,10 +1328,6 @@ function applyTheme(dark) {
     isDark.value = dark;
     document.documentElement.classList.toggle("dark", dark);
     localStorage.setItem("theme", dark ? "dark" : "light");
-}
-
-function toggleTheme() {
-    applyTheme(!isDark.value);
 }
 
 function toggleDarkMode() {

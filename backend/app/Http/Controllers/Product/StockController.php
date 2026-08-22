@@ -73,8 +73,11 @@ class StockController extends Controller
                     $search
                 );
 
-                $baseQuery->whereHas('product', function ($query) use ($escapedSearch) {
-                    $query->where('name', 'like', "%{$escapedSearch}%");
+                $baseQuery->where(function ($query) use ($escapedSearch) {
+                    $query->where('reg', 'like', "%{$escapedSearch}%")
+                        ->orWhereHas('product', function ($query) use ($escapedSearch) {
+                            $query->where('name', 'like', "%{$escapedSearch}%");
+                        });
                 });
             }
 

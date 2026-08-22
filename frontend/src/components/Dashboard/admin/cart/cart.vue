@@ -1014,7 +1014,7 @@ const manualDiscount = computed(() => {
 const vatAmount = computed(() => {
     const vatRate = Math.max(0, Number(form.vat) || 0);
 
-    const taxableAmount = Math.max(0, subtotal.value - manualDiscount.value);
+    const taxableAmount = Math.max(0, subtotal.value);
 
     const amount = taxableAmount * vatRate / 100;
 

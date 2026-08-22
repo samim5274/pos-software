@@ -187,6 +187,17 @@
                                 Stock In
                                 </button>
                             </li>
+                            <li>
+                                <button
+                                class="w-full px-4 py-2 text-sm text-left transition
+                                        hover:bg-white dark:hover:bg-white/10"
+                                :class="activeKey === 'purchase_product'
+                                    ? 'bg-white text-slate-900 font-medium dark:bg-white/10 dark:text-white'
+                                    : 'text-slate-700 dark:text-slate-200/90'"
+                                @click="pick('purchase_product')">
+                                Purchase Stock In
+                                </button>
+                            </li>
 
                             <hr class="border-0 border-t border-slate-400 dark:border-slate-700">
                             <li>
@@ -509,6 +520,7 @@ const routeMap = {
     product_setting: "/admin/product/setting",
 
     product_stock: "/admin/product/stock",
+    purchase_product: "/admin/product/purchase/stock",
     report_stock: "/admin/reports/stock",
 
     orders: "/admin/orders",
@@ -553,6 +565,7 @@ const routeMatch = [
     { key: "product_setting", prefixes: ["/admin/product/setting"] },
 
     { key: "product_stock", prefixes: ["/admin/product/stock"] },
+    { key: "purchase_product", prefixes: ["/admin/product/purchase/stock"] },
     { key: "report_stock", prefixes: ["/admin/reports/stock"] },
 
     { key: "order_payment", prefixes: ["/admin/orders/payment"] },
@@ -644,7 +657,7 @@ watch(
 watch(
     () => activeKey.value,
     (k) => {
-        const stockPageKey = ["product_stock", "report_stock",];
+        const stockPageKey = ["product_stock", "report_stock", "purchase_product"];
         if (stockPageKey.includes(k)) {
         stockPagesOpen.value = true;
         }
