@@ -187,6 +187,19 @@
                                 Stock In
                                 </button>
                             </li>
+
+                            <hr class="border-0 border-t border-slate-400 dark:border-slate-700">
+                            <li>
+                                <button
+                                class="w-full px-4 py-2 text-sm text-left transition
+                                        hover:bg-white dark:hover:bg-white/10"
+                                :class="activeKey === 'report_stock'
+                                    ? 'bg-white text-slate-900 font-medium dark:bg-white/10 dark:text-white'
+                                    : 'text-slate-700 dark:text-slate-200/90'"
+                                @click="pick('report_stock')">
+                                Stock Report's
+                                </button>
+                            </li>
                         </ul>
                     </div>
                 </li>
@@ -313,18 +326,6 @@
                                     : 'text-slate-700 dark:text-slate-200/90'"
                                 @click="pick('report_payment')">
                                 Payment Report's
-                                </button>
-                            </li>
-                            <hr class="border-0 border-t border-slate-400 dark:border-slate-700">
-                            <li>
-                                <button
-                                class="w-full px-4 py-2 text-sm text-left transition
-                                        hover:bg-white dark:hover:bg-white/10"
-                                :class="activeKey === 'report_stock'
-                                    ? 'bg-white text-slate-900 font-medium dark:bg-white/10 dark:text-white'
-                                    : 'text-slate-700 dark:text-slate-200/90'"
-                                @click="pick('report_stock')">
-                                Stock Report's
                                 </button>
                             </li>
                         </ul>
@@ -508,14 +509,14 @@ const routeMap = {
     product_setting: "/admin/product/setting",
 
     product_stock: "/admin/product/stock",
+    report_stock: "/admin/reports/stock",
 
     orders: "/admin/orders",
     order_payment: "/admin/orders/payment",
 
     // reports
     report_sale: "/admin/reports/sale",
-    report_payment: "/admin/reports/payment",
-    report_stock: "/admin/reports/stock",
+    report_payment: "/admin/reports/payment",    
 
 
     // Others
@@ -552,13 +553,13 @@ const routeMatch = [
     { key: "product_setting", prefixes: ["/admin/product/setting"] },
 
     { key: "product_stock", prefixes: ["/admin/product/stock"] },
+    { key: "report_stock", prefixes: ["/admin/reports/stock"] },
 
     { key: "order_payment", prefixes: ["/admin/orders/payment"] },
     { key: "orders", prefixes: ["/admin/orders", "/admin/customer-details/"] },
 
     { key: "report_sale", prefixes: ["/admin/reports/sale"] },
-    { key: "report_payment", prefixes: ["/admin/reports/payment"] },
-    { key: "report_stock", prefixes: ["/admin/reports/stock"] },
+    { key: "report_payment", prefixes: ["/admin/reports/payment"] },    
 
 
     { key: "notice", prefixes: ["/admin/notice"] },
@@ -643,7 +644,7 @@ watch(
 watch(
     () => activeKey.value,
     (k) => {
-        const stockPageKey = ["product_stock"];
+        const stockPageKey = ["product_stock", "report_stock",];
         if (stockPageKey.includes(k)) {
         stockPagesOpen.value = true;
         }
@@ -720,7 +721,6 @@ watch(
         const reportKeys = [
         "report_sale", 
         "report_payment", 
-        "report_stock",
         ];
         if (reportKeys.includes(k)) {
         reportPagesOpen.value = true;

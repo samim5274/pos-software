@@ -468,10 +468,6 @@ function applyTheme(dark) {
     localStorage.setItem("theme", dark ? "dark" : "light");
 }
 
-function toggleTheme() {
-    applyTheme(!isDark.value);
-}
-
 function toggleDarkMode() {
     isDark.value = !isDark.value;
     document.documentElement.classList.toggle("dark",isDark.value);

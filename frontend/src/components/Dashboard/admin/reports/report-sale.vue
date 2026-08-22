@@ -357,7 +357,7 @@
 <script setup>
 import { onMounted, ref, computed } from "vue";
 import { useRouter } from 'vue-router'
-import api, {makeImg} from '../../../../services/api.js'
+import api from '../../../../services/api.js'
 
 import Navbar from "../../admin/admin-navbar.vue";
 import HeaderSection from "../../admin/admin-header.vue";
@@ -376,11 +376,9 @@ function toggleMenu() {
 
 
 const sidebarOpen = ref(false);
-const active = ref("dashboard");
 const router = useRouter();
 const successMsg = ref('');
 const errorMsg = ref('');
-const search = ref('');
 const loading = ref(false);
 
 
@@ -388,14 +386,7 @@ const loading = ref(false);
 
 
 
-
-const orderPage = ref(1);
-const orderLastPage = ref(1);
-const orderTotal = ref(0);
-const orderPerPage = ref(20);
-const orderFromItem = ref(0);
-const orderToItem = ref(0);
-
+// Pagination
 const OrderVisiblePages = computed(() => {
     const pages = [];
     const last = pagination.value.lastPage;

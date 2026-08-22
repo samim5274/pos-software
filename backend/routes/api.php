@@ -148,6 +148,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 // ======================
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::prefix('stock')->group(function () {
+        Route::get('/', [StockController::class, 'index']);
+        Route::get('/report', [StockController::class, 'stockReport']);
         Route::post('/{id}', [StockController::class, 'store']);
     });
 });

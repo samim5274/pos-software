@@ -15,6 +15,131 @@ use App\Models\Stock;
 
 class StockController extends Controller
 {
+
+    public function index()
+    {
+        try {
+            $stocks = Stock::with([
+                    'product:id,name,stock_quantity,min_stock,purchase_price,price,discount'
+                ])->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Stock report fetched successfully.',
+                'data' => $stocks,
+            ], 200);
+
+        } catch (Throwable $e) {
+
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch stock report.',
+            ], 500);
+        }
+    }
+
+    public function stockReport(Request $request)
+    {
+        $validated = $request->validate([
+            'start_date' => 'nullable|date_format:Y-m-d',
+            'end_date'   => 'nullable|date_format:Y-m-d|after_or_equal:start_date',
+            'product_id' => 'nullable|integer|exists:products,id',
+            'search'     => 'nullable|string|max:100',
+            'per_page'   => 'nullable|integer|min:10|max:100',
+        ]);
+
+        try {
+            $startDate  = $validated['start_date'] ?? now()->startOfMonth()->toDateString();
+            $endDate    = $validated['end_date'] ?? now()->toDateString();
+            $perPage    = $validated['per_page'] ?? 20;
+            $productId  = $validated['product_id'] ?? null;
+            $search     = isset($validated['search']) ? trim($validated['search']) : null;
+
+            // Base stock query
+            $baseQuery = Stock::query()->whereDate('date', '>=', $startDate)->whereDate('date', '<=', $endDate);
+
+            // Product filter
+            if ($productId) {
+                $baseQuery->where('product_id', $productId);
+            }
+
+            // Product search
+            if ($search) {
+                $escapedSearch = str_replace(
+                    ['\\', '%', '_'],
+                    ['\\\\', '\%', '\_'],
+                    $search
+                );
+
+                $baseQuery->whereHas('product', function ($query) use ($escapedSearch) {
+                    $query->where('name', 'like', "%{$escapedSearch}%");
+                });
+            }
+
+            // Stock report
+            $stocks = (clone $baseQuery)
+                ->with([
+                    'product:id,name,stock_quantity,min_stock,purchase_price,price,discount',
+                ])
+                ->orderByDesc('date')
+                ->orderByDesc('id')
+                ->paginate($perPage)
+                ->withQueryString();
+
+            // Stock summary
+            $summary = (clone $baseQuery)
+                ->selectRaw('
+                    COALESCE(SUM(stockIn), 0) AS total_stock_in,
+                    COALESCE(SUM(stockOut), 0) AS total_stock_out,
+                    COALESCE(SUM(stockIn - stockOut), 0) AS net_stock
+                ')
+                ->first();
+
+            // Financial summary
+            $financialSummary = (clone $baseQuery)
+                ->join('products', 'stocks.product_id', '=', 'products.id')
+                ->selectRaw('
+                    COALESCE(SUM(stocks.stockIn * COALESCE(products.purchase_price, 0)), 0) AS total_purchase_value,
+                    COALESCE(SUM(stocks.stockOut * COALESCE(products.purchase_price, 0)), 0) AS total_stock_out_cost,
+                    COALESCE(SUM(stocks.stockOut * COALESCE(products.price, 0)), 0) AS total_stock_out_sales_value
+                ')
+                ->first();
+
+            // Response
+            return response()->json([
+                'success' => true,
+                'message' => 'Stock report fetched successfully.',
+                'filters' => [
+                    'start_date' => $startDate,
+                    'end_date' => $endDate,
+                    'product_id' => $productId,
+                    'search' => $search,
+                    'per_page' => $perPage,
+                ],
+                'summary' => [
+                    'total_stock_in' => (int) $summary->total_stock_in,
+                    'total_stock_out' => (int) $summary->total_stock_out,
+                    'net_stock' => (int) $summary->net_stock,
+                    'total_purchase_value' => round((float) $financialSummary->total_purchase_value, 2),
+                    'total_stock_out_cost' => round((float) $financialSummary->total_stock_out_cost, 2),
+                    'total_stock_out_sales_value' => round((float) $financialSummary->total_stock_out_sales_value, 2),
+                ],
+                'data' => $stocks,
+            ], 200);
+
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch stock report.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
     public function store(Request $request, $id)
     {
         $request->validate([
