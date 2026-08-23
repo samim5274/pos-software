@@ -39,8 +39,8 @@ class ProductSeeder extends Seeder
             $name = "Sample Product {$i}";
             $slug = Str::slug($name);
 
-            $purchase_price = rand(100, 2000);
-            $price = rand(100, 2000);
+            $purchase_price = rand(100, 200);
+            $price = rand(200, 400);
 
             // 10% - 50%
             $discount = rand(0, (int)($price * 0.5));
@@ -57,8 +57,8 @@ class ProductSeeder extends Seeder
                 'brand_id'         => $brand->id,
                 'purchase_price'   => $purchase_price,
                 'price'            => $price,
-                'discount'         => $discountPrice,
-                'stock_quantity'   => rand(5, 50),
+                'discount'         => 0,
+                'stock_quantity'   => 0,
                 'min_stock'        => 5,
                 'is_active'        => 1,
                 'point'            => $point,

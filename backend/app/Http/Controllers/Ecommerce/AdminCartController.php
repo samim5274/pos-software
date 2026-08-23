@@ -34,29 +34,147 @@ class AdminCartController extends Controller
 
         if (!$userId) {
             return response()->json([
+                'success' => false,
                 'message' => 'Unauthorized user',
             ], 401);
         }
 
-        $reg = RegGenerator::generateOrderReg($userId);
+        try {
 
-        $items = Cart::with(['product.images','user'])
-            ->where('user_id', $userId)
-            ->where('reg', $reg)
-            ->get();
+            /*
+            |--------------------------------------------------------------------------
+            | Current Cart REG
+            |--------------------------------------------------------------------------
+            */
 
-        return response()->json([
-            'message' => 'Cart items',
-            'reg' => $reg,
-            'data' => $items
-        ], 200);
+            $reg = RegGenerator::generateOrderReg($userId);
+
+            if (!$reg) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to generate cart session.',
+                ], 422);
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CART ITEMS
+            |--------------------------------------------------------------------------
+            */
+
+            $items = Cart::query()
+                ->with([
+                    'product.images',
+                    'stock',
+                    'user',
+                ])
+                ->where('user_id', $userId)
+                ->where('reg', $reg)
+                ->orderBy('id', 'asc')
+                ->get();
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | EMPTY CART
+            |--------------------------------------------------------------------------
+            */
+
+            if ($items->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Cart is empty.',
+                    'reg' => $reg,
+                    'data' => [],
+                    'summary' => [
+                        'total_items' => 0,
+                        'total_quantity' => 0,
+                        'subtotal' => 0,
+                        'discount' => 0,
+                        'total' => 0,
+                    ],
+                ], 200);
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CART SUMMARY
+            |--------------------------------------------------------------------------
+            */
+
+            $totalQuantity = (int) $items->sum(
+                fn ($item) => (int) $item->quantity
+            );
+
+            $subtotal = round(
+                $items->sum(
+                    fn ($item) =>
+                        (float) $item->price * (int) $item->quantity
+                ),
+                2
+            );
+
+            $discount = round(
+                $items->sum(
+                    fn ($item) =>
+                        (float) ($item->discount ?? 0)
+                        * (int) $item->quantity
+                ),
+                2
+            );
+
+            $total = round(
+                max(0, $subtotal - $discount),
+                2
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | RESPONSE
+            |--------------------------------------------------------------------------
+            */
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cart items fetched successfully.',
+
+                'reg' => $reg,
+
+                'data' => $items,
+
+                'summary' => [
+                    'total_items' => $items->count(),
+                    'total_quantity' => $totalQuantity,
+                    'subtotal' => $subtotal,
+                    'discount' => $discount,
+                    'total' => $total,
+                ],
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            Log::error('POS Cart Fetch Failed', [
+                'user_id' => $userId,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to fetch cart items. Please try again.',
+            ], 500);
+        }
     }
 
     public function adminAddToCart(Request $request)
     {
         $data = $request->validate([
-            'product_id'    => ['required', 'exists:products,id'],
-            'quantity'      => ['nullable', 'integer', 'min:1'],
+            'product_id' => ['required', 'integer', 'exists:products,id'],
+            'quantity' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $user = auth()->user();
@@ -68,135 +186,36 @@ class AdminCartController extends Controller
             ], 401);
         }
 
-        $requestedQty = (int) ($data['quantity'] ?? 1);
+        try {
 
+            return $this->addProductToCartFIFO(
+                (int) $data['product_id'],
+                (int) ($data['quantity'] ?? 1),
+                $user
+            );
 
+        } catch (ValidationException $e) {
 
-        try{
-            return DB::transaction(function () use ($data, $user, $requestedQty) {
+            return response()->json([
+                'success' => false,
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
 
-                $product = Product::lockForUpdate()->find($data['product_id']);
-                if (!$product) {
-                    throw ValidationException::withMessages([
-                        'product_id' => 'Product not found.',
-                    ]);
-                }
-                if (!$product->is_active) {
-                    throw ValidationException::withMessages([
-                        'product_id' => 'This product is currently inactive.',
-                    ]);
-                }
-                if ((int) $product->stock_quantity <= 0) {
-                    throw ValidationException::withMessages([
-                        'product_id' => 'This product is out of stock.',
-                    ]);
-                }
+        } catch (\Throwable $e) {
 
-                $reg = RegGenerator::generateOrderReg($user->id);
-                if (!$reg) {
-                    throw ValidationException::withMessages([
-                        'reg' => 'Failed to generate cart session.',
-                    ]);
-                }
-
-                $basePrice = (float) $product->price;
-                $discountAmount = (float) ($product->discount ?? 0);
-                $finalPrice = max(0, $basePrice - $discountAmount);
-
-                // ======================
-                // Cart item find
-                // ======================
-                $query = Cart::where('reg', $reg)->where('product_id', $product->id);
-
-                $cartItem = $query->first();
-
-                // ======================
-                // Quantity logic
-                // ======================
-                $requestedQty = 1;
-                $currentQty = $cartItem->quantity ?? 0;
-                $newQty = $currentQty + $requestedQty;
-
-                // ======================
-                // Save cart
-                // ======================
-                if ($cartItem) {
-                    $cartItem->update([
-                        'quantity'          => $newQty,
-                        'price'             => $basePrice,
-                        'discount'          => $discountAmount,
-                        'total_amount'    => $finalPrice,
-                    ]);
-
-                } else {
-                    $cartItem = Cart::create([
-                        'reg'               => $reg,
-                        'user_id'           => $user->id,
-                        'product_id'        => $product->id,
-                        'quantity'          => $requestedQty,
-                        'price'             => $basePrice,
-                        'discount'          => $discountAmount,
-                        'total_amount'      => $finalPrice,
-                        'point'             => $product->point,
-                    ]);
-
-
-                }
-
-                $stock = Stock::where('reg', $reg)->where('product_id', $product->id )->first();
-
-                if($stock) {
-                    $stock->update([
-                        'stockOut' => $newQty,
-                    ]);
-                } else {
-                    Stock::Create([
-                        'reg' => $reg,
-                        'date' => now()->toDateString(),
-                        'product_id' => $product->id,
-                        'stockOut' => $newQty,
-                        'remark' => 'add to cart by : '.  $user->name,
-                    ]);
-                }
-
-                if($product){
-                    $product->stock_quantity = $product->stock_quantity - $requestedQty;
-                    $product->update();
-                }
-
-                // ======================
-                // RESPONSE (OUTSIDE EXCEPTION FLOW STYLE)
-                // ======================
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Product added to cart successfully.',
-                    'data' => [
-                        'cart_id'    => $cartItem->id,
-                        'product_id' => $product->id,
-                        'quantity'   => $cartItem->quantity,
-                        'price'      => (float) $finalPrice,
-                        'total'      => (float) ($finalPrice * $cartItem->quantity)
-                    ]
-                ], 201);
-
-            });
-        } catch (\Exception $e) {
             Log::error('POS Add To Cart Failed', [
-                'user_id'    => $user->id,
+                'user_id' => $user->id,
                 'product_id' => $data['product_id'] ?? null,
-                'quantity'   => $requestedQty,
-                'message'    => $e->getMessage(),
-                'file'       => $e->getFile(),
-                'line'       => $e->getLine(),
+                'quantity' => $data['quantity'] ?? 1,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Unable to add product to cart. Please try again.',
-                // debug only
-                // 'message' => $e->getMessage(),
-                // 'file'    => $e->getFile(),
-                // 'line'    => $e->getLine(),
             ], 500);
         }
     }
@@ -204,8 +223,16 @@ class AdminCartController extends Controller
     public function adminAddToCartSearch(Request $request)
     {
         $data = $request->validate([
-            'product'    => ['required', 'string'],
-            'quantity'      => ['nullable', 'integer', 'min:1'],
+            'product' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+            'quantity' => [
+                'nullable',
+                'integer',
+                'min:1',
+            ],
         ]);
 
         $user = auth()->user();
@@ -217,153 +244,634 @@ class AdminCartController extends Controller
             ], 401);
         }
 
-        $requestedQty = (int) ($data['quantity'] ?? 1);
+        $search = trim($data['product']);
 
-        try{
-            return DB::transaction(function () use ($data, $user, $requestedQty) {
+        if ($search === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Product search value is required.',
+            ], 422);
+        }
 
-                $search = trim($data['product']);
+        try {
 
-               $product = Product::lockForUpdate()
-                    ->where(function ($query) use ($search) {
-                        $query->where('id', $search)
+            $product = Product::query()
+                ->where(function ($query) use ($search) {
+
+                    if (ctype_digit($search)) {
+                        $query->where('id', (int) $search)
                             ->orWhere('sku', $search)
-                            ->orWhere('slug', $search)
-                            ->orWhere('name', 'LIKE', "%{$search}%");
-                    })
-                    ->first();
-                if (!$product) {
-                    throw ValidationException::withMessages([
-                        'product' => 'Product not found.',
-                    ]);
-                }
-                if (!$product->is_active) {
-                    throw ValidationException::withMessages([
-                        'product' => 'This product is currently inactive.',
-                    ]);
-                }
-                if ((int) $product->stock_quantity <= 0) {
-                    throw ValidationException::withMessages([
-                        'product' => 'This product is out of stock.',
-                    ]);
-                }
+                            ->orWhere('slug', $search);
+                    } else {
+                        $query->where('sku', $search)
+                            ->orWhere('slug', $search);
+                    }
 
-                $reg = RegGenerator::generateOrderReg($user->id);
-                if (!$reg) {
-                    throw ValidationException::withMessages([
-                        'reg' => 'Failed to generate cart session.',
-                    ]);
-                }
+                    $query->orWhere(
+                        'name',
+                        'LIKE',
+                        '%' . addcslashes($search, '%_') . '%'
+                    );
+                })
+                ->first();
 
-                $basePrice = (float) $product->price;
-                $discountAmount = (float) ($product->discount ?? 0);
-                $finalPrice = max(0, $basePrice - $discountAmount);
-
-                // ======================
-                // Cart item find
-                // ======================
-                $query = Cart::where('reg', $reg)->where('product_id', $product->id);
-
-                $cartItem = $query->first();
-
-                // ======================
-                // Quantity logic
-                // ======================
-                $requestedQty = 1;
-                $currentQty = $cartItem->quantity ?? 0;
-                $newQty = $currentQty + $requestedQty;
-
-                // ======================
-                // Save cart
-                // ======================
-                if ($cartItem) {
-                    $cartItem->update([
-                        'quantity'          => $newQty,
-                        'price'             => $basePrice,
-                        'discount'          => $discountAmount,
-                        'total_amount'    => $finalPrice,
-                    ]);
-                } else {
-                    $cartItem = Cart::create([
-                        'reg'               => $reg,
-                        'user_id'           => $user->id,
-                        'product_id'        => $product->id,
-                        'quantity'          => $requestedQty,
-                        'price'             => $basePrice,
-                        'discount'          => $discountAmount,
-                        'total_amount'    => $finalPrice,
-                        'point'             => $product->point,
-                    ]);
-                }
-
-                $stock = Stock::where('reg', $reg)->where('product_id', $product->id )->first();
-
-                if($stock) {
-                    $stock->update([
-                        'stockOut' => $newQty,
-                    ]);
-                } else {
-                    Stock::Create([
-                        'reg' => $reg,
-                        'date' => now()->toDateString(),
-                        'product_id' => $product->id,
-                        'stockOut' => $newQty,
-                        'remark' => 'add to cart by : '.  $user->name,
-                    ]);
-                }
-
-                if($product){
-                    $product->stock_quantity = $product->stock_quantity - $requestedQty;
-                    $product->update();
-                }
-
-                // ======================
-                // RESPONSE (OUTSIDE EXCEPTION FLOW STYLE)
-                // ======================
+            if (!$product) {
                 return response()->json([
-                    'success' => true,
-                    'message' => 'Product added to cart successfully.',
-                    'data' => [
-                        'cart_id'    => $cartItem->id,
-                        'product_id' => $product->id,
-                        'quantity'   => $cartItem->quantity,
-                        'price'      => (float) $finalPrice,
-                        'total'      => (float) ($finalPrice * $cartItem->quantity)
-                    ]
-                ], 201);
+                    'success' => false,
+                    'message' => 'Product not found.',
+                ], 404);
+            }
 
-            });
-        } catch (\Exception $e) {
-            Log::error('POS Add To Cart Failed', [
-                'user_id'    => $user->id,
-                'product_id' => $data['product_id'] ?? null,
-                'quantity'   => $requestedQty,
-                'message'    => $e->getMessage(),
-                'file'       => $e->getFile(),
-                'line'       => $e->getLine(),
+            if (!$product->is_active) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This product is currently inactive.',
+                ], 422);
+            }
+
+            // Reuse the same FIFO cart logic
+            $quantity = (int) ($data['quantity'] ?? 1);
+
+            return $this->addProductToCartFIFO(
+                $product->id,
+                $quantity,
+                $user
+            );
+
+        } catch (\Throwable $e) {
+
+            Log::error('POS Add To Cart Search Failed', [
+
+                'user_id' => $user->id,
+
+                'search' => $search,
+
+                'quantity' => $data['quantity'] ?? 1,
+
+                'message' => $e->getMessage(),
+
+                'file' => $e->getFile(),
+
+                'line' => $e->getLine(),
+
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Unable to add product to cart. Please try again.',
-                // debug only
-                // 'message' => $e->getMessage(),
-                // 'file'    => $e->getFile(),
-                // 'line'    => $e->getLine(),
             ], 500);
         }
     }
 
+    private function addProductToCartFIFO(
+        int $productId,
+        int $requestedQty,
+        $user
+    ) {
+        return DB::transaction(function () use (
+            $productId,
+            $requestedQty,
+            $user
+        ) {
+
+            // =====================================================
+            // PRODUCT
+            // =====================================================
+
+            $product = Product::query()
+                ->whereKey($productId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$product) {
+                throw ValidationException::withMessages([
+                    'product_id' => 'Product not found.',
+                ]);
+            }
+
+            if (!$product->is_active) {
+                throw ValidationException::withMessages([
+                    'product_id' => 'This product is currently inactive.',
+                ]);
+            }
+
+
+            // =====================================================
+            // CART REG
+            // =====================================================
+
+            $reg = RegGenerator::generateOrderReg($user->id);
+
+            if (!$reg) {
+                throw ValidationException::withMessages([
+                    'reg' => 'Failed to generate cart session.',
+                ]);
+            }
+
+
+            // =====================================================
+            // EXISTING PRODUCT QTY IN CART
+            // =====================================================
+
+            $existingQty = (int) Cart::query()
+                ->where('reg', $reg)
+                ->where('user_id', $user->id)
+                ->where('product_id', $product->id)
+                ->sum('quantity');
+
+
+            $newTotalQty = $existingQty + $requestedQty;
+
+
+            // =====================================================
+            // LOCK STOCKS
+            // =====================================================
+
+            $stocks = Stock::query()
+                ->where('product_id', $product->id)
+                ->where('status', 'active')
+                ->where(function ($query) {
+                    $query
+                        ->whereNull('expiry_date')
+                        ->orWhereDate('expiry_date', '>=', today());
+                })
+                ->whereRaw('stockIn > stockOut')
+                ->orderBy('date', 'asc')
+                ->orderBy('id', 'asc')
+                ->lockForUpdate()
+                ->get();
+
+
+            if ($stocks->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'product_id' => 'This product is out of stock.',
+                ]);
+            }
+
+
+            // =====================================================
+            // TOTAL AVAILABLE
+            // =====================================================
+
+            $totalAvailableStock = $stocks->sum(
+                fn ($stock) => max(
+                    0,
+                    (int) $stock->stockIn
+                    - (int) $stock->stockOut
+                )
+            );
+
+
+            if ($newTotalQty > $totalAvailableStock) {
+
+                throw ValidationException::withMessages([
+                    'quantity' => [
+                        "Only {$totalAvailableStock} item(s) available in stock."
+                    ],
+                ]);
+            }
+
+
+            // =====================================================
+            // REBUILD PRODUCT CART FIFO
+            // =====================================================
+
+            Cart::query()
+                ->where('reg', $reg)
+                ->where('user_id', $user->id)
+                ->where('product_id', $product->id)
+                ->delete();
+
+
+            $remainingQty = $newTotalQty;
+
+            $cartItems = [];
+
+
+            foreach ($stocks as $stock) {
+
+                if ($remainingQty <= 0) {
+                    break;
+                }
+
+
+                $availableQty = max(
+                    0,
+                    (int) $stock->stockIn
+                    - (int) $stock->stockOut
+                );
+
+
+                if ($availableQty <= 0) {
+                    continue;
+                }
+
+
+                $allocateQty = min(
+                    $remainingQty,
+                    $availableQty
+                );
+
+
+                $salePrice = round(
+                    (float) $stock->sale_price,
+                    2
+                );
+
+
+                if ($salePrice < 0) {
+                    throw ValidationException::withMessages([
+                        'product_id' => 'Invalid stock sale price.',
+                    ]);
+                }
+
+
+                $discountAmount = round(
+                    max(
+                        0,
+                        (float) ($product->discount ?? 0)
+                    ),
+                    2
+                );
+
+
+                $finalPrice = round(
+                    max(
+                        0,
+                        $salePrice - $discountAmount
+                    ),
+                    2
+                );
+
+
+                $cartItem = Cart::create([
+
+                    'reg' => $reg,
+
+                    'user_id' => $user->id,
+
+                    'product_id' => $product->id,
+
+                    'stock_id' => $stock->id,
+
+                    'quantity' => $allocateQty,
+
+                    'price' => $salePrice,
+
+                    'discount' => $discountAmount,
+
+                    'total_amount' => round(
+                        $finalPrice * $allocateQty,
+                        2
+                    ),
+
+                    'point' => $product->point,
+                ]);
+
+
+                $cartItems[] = $cartItem;
+
+                $remainingQty -= $allocateQty;
+            }
+
+
+            if ($remainingQty > 0) {
+                throw ValidationException::withMessages([
+                    'quantity' => [
+                        'Unable to allocate quantity using FIFO stock.'
+                    ],
+                ]);
+            }
+
+
+            return response()->json([
+
+                'success' => true,
+
+                'message' => 'Product added to cart successfully.',
+
+                'data' => [
+
+                    'reg' => $reg,
+
+                    'product_id' => $product->id,
+
+                    'product_name' => $product->name,
+
+                    'quantity' => $newTotalQty,
+
+                    'available_stock' => $totalAvailableStock,
+
+                    'remaining_stock' => max(
+                        0,
+                        $totalAvailableStock - $newTotalQty
+                    ),
+
+                    'items' => collect($cartItems)
+                        ->map(function ($item) {
+
+                            return [
+                                'cart_id' => $item->id,
+                                'product_id' => $item->product_id,
+                                'stock_id' => $item->stock_id,
+                                'quantity' => (int) $item->quantity,
+                                'price' => (float) $item->price,
+                                'discount' => (float) $item->discount,
+                                'total' => (float) $item->total_amount,
+                            ];
+
+                        })
+                        ->values(),
+                ],
+
+            ], 201);
+        });
+    }
+
     public function updateQty(Request $request, $reg, $product_id)
     {
-        $request->validate([
-            'quantity' => 'required|integer|min:1|max:100',
+        $data = $request->validate([
+            'quantity' => [
+                'required',
+                'integer',
+                'min:1',
+                'max:10000',
+            ],
         ]);
 
-        try {
-            return DB::transaction(function () use ($request, $reg, $product_id) {
+        $user = auth()->user();
 
-                $cartItem = Cart::where('reg', $reg)
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 401);
+        }
+
+        try {
+
+            return $this->rebuildCartProductFIFO(
+                $reg,
+                (int) $product_id,
+                (int) $data['quantity'],
+                $user
+            );
+
+        } catch (ValidationException $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+
+        } catch (\Throwable $e) {
+
+            Log::error('Cart Qty Update Error', [
+                'user_id' => $user->id,
+                'reg' => $reg,
+                'product_id' => $product_id,
+                'quantity' => $data['quantity'],
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to update cart quantity.',
+            ], 500);
+        }
+    }
+
+    private function rebuildCartProductFIFO(
+        string $reg,
+        int $productId,
+        int $quantity,
+        $user
+    ) {
+        return DB::transaction(function () use (
+            $reg,
+            $productId,
+            $quantity,
+            $user
+        ) {
+
+            // =====================================================
+            // PRODUCT
+            // =====================================================
+
+            $product = Product::query()
+                ->whereKey($productId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$product) {
+                throw ValidationException::withMessages([
+                    'product_id' => 'Product not found.',
+                ]);
+            }
+
+            if (!$product->is_active) {
+                throw ValidationException::withMessages([
+                    'product_id' => 'This product is currently inactive.',
+                ]);
+            }
+
+
+            // =====================================================
+            // LOCK STOCKS
+            // =====================================================
+
+            $stocks = Stock::query()
+                ->where('product_id', $productId)
+                ->where('status', 'active')
+                ->where(function ($query) {
+                    $query
+                        ->whereNull('expiry_date')
+                        ->orWhereDate('expiry_date', '>=', today());
+                })
+                ->whereRaw('stockIn > stockOut')
+                ->orderBy('date', 'asc')
+                ->orderBy('id', 'asc')
+                ->lockForUpdate()
+                ->get();
+
+
+            $totalAvailableStock = $stocks->sum(
+                fn ($stock) => max(
+                    0,
+                    (int) $stock->stockIn
+                    - (int) $stock->stockOut
+                )
+            );
+
+
+            if ($quantity > $totalAvailableStock) {
+                throw ValidationException::withMessages([
+                    'quantity' => [
+                        "Only {$totalAvailableStock} item(s) available in stock."
+                    ],
+                ]);
+            }
+
+
+            // =====================================================
+            // DELETE CURRENT ALLOCATION
+            // =====================================================
+
+            Cart::query()
+                ->where('reg', $reg)
+                ->where('user_id', $user->id)
+                ->where('product_id', $productId)
+                ->delete();
+
+
+            // =====================================================
+            // FIFO REBUILD
+            // =====================================================
+
+            $remainingQty = $quantity;
+
+            $items = [];
+
+
+            foreach ($stocks as $stock) {
+
+                if ($remainingQty <= 0) {
+                    break;
+                }
+
+
+                $availableQty = max(
+                    0,
+                    (int) $stock->stockIn
+                    - (int) $stock->stockOut
+                );
+
+
+                if ($availableQty <= 0) {
+                    continue;
+                }
+
+
+                $allocateQty = min(
+                    $remainingQty,
+                    $availableQty
+                );
+
+
+                $salePrice = round(
+                    (float) $stock->sale_price,
+                    2
+                );
+
+
+                $discountAmount = round(
+                    max(
+                        0,
+                        (float) ($product->discount ?? 0)
+                    ),
+                    2
+                );
+
+
+                $finalPrice = round(
+                    max(
+                        0,
+                        $salePrice - $discountAmount
+                    ),
+                    2
+                );
+
+
+                $items[] = Cart::create([
+
+                    'reg' => $reg,
+
+                    'user_id' => $user->id,
+
+                    'product_id' => $productId,
+
+                    'stock_id' => $stock->id,
+
+                    'quantity' => $allocateQty,
+
+                    'price' => $salePrice,
+
+                    'discount' => $discountAmount,
+
+                    'total_amount' => round(
+                        $finalPrice * $allocateQty,
+                        2
+                    ),
+
+                    'point' => $product->point,
+                ]);
+
+
+                $remainingQty -= $allocateQty;
+            }
+
+
+            if ($remainingQty > 0) {
+                throw ValidationException::withMessages([
+                    'quantity' => [
+                        'Unable to allocate FIFO stock.',
+                    ],
+                ]);
+            }
+
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cart quantity updated successfully.',
+                'data' => [
+                    'reg' => $reg,
+                    'product_id' => $productId,
+                    'quantity' => $quantity,
+                    'items' => collect($items)->map(function ($item) {
+                        return [
+                            'cart_id' => $item->id,
+                            'stock_id' => $item->stock_id,
+                            'quantity' => (int) $item->quantity,
+                            'price' => (float) $item->price,
+                            'discount' => (float) $item->discount,
+                            'total' => (float) $item->total_amount,
+                        ];
+                    })->values(),
+                ],
+            ], 200);
+        });
+    }
+
+    public function removeToCart(
+        Request $request,
+        $cart_id,
+        $reg,
+        $product_id
+    ) {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 401);
+        }
+
+        try {
+
+            return DB::transaction(function () use (
+                $user,
+                $cart_id,
+                $reg,
+                $product_id
+            ) {
+
+                $cartItem = Cart::query()
+                    ->where('id', $cart_id)
+                    ->where('user_id', $user->id)
+                    ->where('reg', $reg)
                     ->where('product_id', $product_id)
                     ->lockForUpdate()
                     ->first();
@@ -371,70 +879,40 @@ class AdminCartController extends Controller
                 if (!$cartItem) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Cart item not found',
+                        'message' => 'Cart item not found.',
                     ], 404);
                 }
 
-                $oldQty = $cartItem->quantity;
-                $newQty = $request->quantity;
 
-                // Quantity difference
-                $difference = $newQty - $oldQty;
+                // =====================================================
+                // Delete ONLY this cart allocation
+                // =====================================================
 
-                // Update cart quantity
-                $cartItem->update([
-                    'quantity' => $newQty,
-                ]);
+                $cartItem->delete();
 
-                // Update stock record
-                $stock = Stock::where('reg', $reg)
-                    ->where('product_id', $product_id)
-                    ->lockForUpdate()
-                    ->first();
 
-                if ($stock) {
-                    $stock->update([
-                        'stockOut' => $newQty,
-                    ]);
-                }
+                // =====================================================
+                // Remaining cart items
+                // =====================================================
 
-                // Update product stock
-                $product = Product::lockForUpdate()->find($product_id);
+                $remaining = Cart::query()
+                    ->where('user_id', $user->id)
+                    ->where('reg', $reg)
+                    ->count();
 
-                if ($product && $difference != 0) {
-
-                    if($product->stock_quantity <= 0) {
-                        throw ValidationException::withMessages([
-                            'quantity' => "Only {$product->stock_quantity} items are available in stock.",
-                        ]);
-                    }
-
-                    if ($difference > 0) {
-                        // Cart quantity increased
-                        $product->decrement(
-                            'stock_quantity',
-                            $difference
-                        );
-
-                    } else {
-                        // Cart quantity decreased
-                        $product->increment(
-                            'stock_quantity',
-                            abs($difference)
-                        );
-                    }
-                }
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Qty updated successfully',
-                    'quantity' => $newQty,
-                ]);
+                    'message' => 'Cart item removed successfully.',
+                    'remaining_items' => $remaining,
+                ], 200);
             });
 
         } catch (\Throwable $e) {
 
-            \Log::error('Cart Qty Update Error', [
+            Log::error('Cart Remove Error', [
+                'user_id' => $user->id,
+                'cart_id' => $cart_id,
                 'reg' => $reg,
                 'product_id' => $product_id,
                 'error' => $e->getMessage(),
@@ -443,107 +921,59 @@ class AdminCartController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Something went wrong',
-            ], 500);
-        }
-    }
-
-    public function removeToCart(Request $request, $cart_id, $reg, $product_id){
-
-        $user = auth()->user();
-
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized'
-            ], 401);
-        }
-
-        try{
-            if (!$reg || !$product_id) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Invalid request data'
-                ], 422);
-            }
-
-            $cartItem = Cart::where('id', $cart_id)
-                ->where('user_id', $user->id)
-                ->where('reg', $reg)
-                ->where('product_id', $product_id)
-                ->first();
-
-            if (!$cartItem) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cart item not found'
-                ], 404);
-            }
-
-            $cartItem->delete();
-
-            $remaining = Cart::where('user_id', $user->id)
-                ->where('reg', $reg)
-                ->count();
-
-            $stock = Stock::where('reg', $reg)
-                ->where('product_id', $product_id)
-                ->first();
-
-            if ($stock) {
-                $stock->delete();
-            }
-
-            $product = Product::lockForUpdate()->find($product_id);
-
-            if($product){
-                $product->increment('stock_quantity', $cartItem->quantity);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Item removed from cart successfully',
-                'remaining_items' => $remaining
-            ], 200);
-
-        } catch (\Throwable $e) {
-            \Log::error('Cart Remove Error', [
-                'user_id' => $user->id,
-                'cart_id' => $cart_id,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Something went wrong'
+                'message' => 'Unable to remove cart item.',
             ], 500);
         }
     }
 
     public function getCartItem($reg)
     {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 401);
+        }
+
         try {
-            $items = Cart::with(['product.images','user'])
-                        ->where('reg', $reg)->get();
+
+            $items = Cart::query()
+                ->with([
+                    'product.images',
+                    'user',
+                    'stock:id,product_id,batch_no,reg,sale_price,purchase_price,stockIn,stockOut,expiry_date,status',
+                ])
+                ->where('reg', $reg)
+                ->where('user_id', $user->id)
+                ->orderBy('id')
+                ->get();
+
 
             if ($items->isEmpty()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No cart items found.',
-                    'data' => []
+                    'data' => [],
                 ], 404);
             }
+
 
             return response()->json([
                 'success' => true,
                 'message' => 'Cart items fetched successfully.',
                 'reg' => $reg,
-                'data' => $items
+                'data' => $items,
             ], 200);
 
         } catch (\Throwable $e) {
 
-            \Log::error('Cart fetch error: ' . $e->getMessage());
+            Log::error('Cart fetch error', [
+                'user_id' => $user->id,
+                'reg' => $reg,
+                'message' => $e->getMessage(),
+            ]);
 
             return response()->json([
                 'success' => false,
@@ -714,6 +1144,83 @@ class AdminCartController extends Controller
                         'ip_address'     => $request->ip(),
                         'user_agent'     => $request->userAgent(),
                     ]);
+                }
+
+                // =====================================================
+                // LOCK & VALIDATE STOCK
+                // =====================================================
+
+                foreach ($cartItems as $cartItem) {
+
+                    if (!$cartItem->stock_id) {
+                        throw ValidationException::withMessages([
+                            'cart' => [
+                                "Stock allocation missing for product ID {$cartItem->product_id}."
+                            ],
+                        ]);
+                    }
+
+
+                    $stock = Stock::query()
+                        ->whereKey($cartItem->stock_id)
+                        ->where('product_id', $cartItem->product_id)
+                        ->lockForUpdate()
+                        ->first();
+
+
+                    if (!$stock) {
+                        throw ValidationException::withMessages([
+                            'cart' => [
+                                "Stock not found for product ID {$cartItem->product_id}."
+                            ],
+                        ]);
+                    }
+
+
+                    if ($stock->status !== 'active') {
+                        throw ValidationException::withMessages([
+                            'cart' => [
+                                "Stock batch {$stock->batch_no} is no longer active."
+                            ],
+                        ]);
+                    }
+
+
+                    if (
+                        $stock->expiry_date &&
+                        $stock->expiry_date->lt(today())
+                    ) {
+                        throw ValidationException::withMessages([
+                            'cart' => [
+                                "Stock batch {$stock->batch_no} has expired."
+                            ],
+                        ]);
+                    }
+
+
+                    $availableQty =
+                        (int) $stock->stockIn
+                        - (int) $stock->stockOut;
+
+
+                    if ($cartItem->quantity > $availableQty) {
+
+                        throw ValidationException::withMessages([
+                            'cart' => [
+                                "Insufficient stock for product ID {$cartItem->product_id}."
+                            ],
+                        ]);
+                    }
+
+
+                    // =================================================
+                    // ACTUAL SALE
+                    // =================================================
+
+                    $stock->increment(
+                        'stockOut',
+                        (int) $cartItem->quantity
+                    );
                 }
 
                 $order->load([
