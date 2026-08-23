@@ -162,6 +162,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/{reg}', [PurchaseController::class, 'getCartItem']);
         Route::post('/add-to-cart', [PurchaseController::class, 'adminAddToCart']);
         Route::post('/qty-update/{reg}/{product_id}', [PurchaseController::class, 'updateQty']);
+        Route::put('/cart/{id}', [PurchaseController::class, 'updateCartItem']);
         Route::post('/remove-to-cart/{cart_id}/{reg}/{product_id}', [PurchaseController::class, 'removeToCart']);
         Route::post('/checkout/{reg}', [PurchaseController::class, 'confirmOrder']);
     });

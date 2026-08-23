@@ -15,21 +15,19 @@ class PurchaseCart extends Model
         'product_id',
         'quantity',
         'price',
-        'discount',
         'total_amount',
+        'sale_price',
         'note',
     ];
 
     protected $casts = [
         'quantity' => 'integer',
         'price' => 'decimal:2',
-        'discount' => 'decimal:2',
         'total_amount' => 'decimal:2',
     ];
 
     protected $appends = [
         'gross_amount',
-        'discount_amount',
     ];
 
     // Cart owner
@@ -54,24 +52,6 @@ class PurchaseCart extends Model
     {
         return round(
             (float) $this->quantity * (float) $this->price,
-            2
-        );
-    }
-
-    // Total discount
-    public function getDiscountAmountAttribute()
-    {
-        return round(
-            (float) $this->quantity * (float) $this->discount,
-            2
-        );
-    }
-
-    // Calculate final amount
-    public function calculateTotal()
-    {
-        return round(
-            max(0, $this->gross_amount - $this->discount_amount),
             2
         );
     }

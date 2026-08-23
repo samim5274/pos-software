@@ -39,7 +39,7 @@
                                 </div>
                                 <!-- Cart Table Container -->
                                 <div class="w-full overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/40 shadow-sm">
-                                    <div class="max-h-[83rem] overflow-y-auto overflow-x-auto custom-scrollbar">
+                                    <div class="max-h-[45rem] overflow-y-auto overflow-x-auto custom-scrollbar">
                                         <table class="w-full text-left border-collapse">
 
                                             <!-- Table Header -->
@@ -102,10 +102,14 @@
                                                     </td>
                                                     <!-- Subtotal -->
                                                     <td class="py-3 px-3 text-right whitespace-nowrap font-black text-slate-900 dark:text-white">
-                                                        ৳{{ ((Number(item.price) - Number(item.discount)) * item.quantity).toLocaleString() }}
+                                                        ৳{{ (Number(item.price) * item.quantity).toLocaleString() }}
                                                     </td>
                                                     <!-- Remove Button -->
                                                     <td class="py-3 px-3 text-center whitespace-nowrap">
+                                                        <button type="button" @click="openEdit(item)"
+                                                            class="w-6 h-6 inline-flex items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 transition-all">
+                                                            <i class="fa-solid fa-pen-to-square text-[11px]"></i>
+                                                        </button>
                                                         <button type="button" @click="remove(item)"
                                                             class="w-6 h-6 inline-flex items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 transition-all">
                                                             <i class="fa-solid fa-trash-can text-[11px]"></i>
@@ -139,6 +143,94 @@
                                                 </tr>
                                             </tbody>
                                         </table>
+                                    </div>
+                                </div>
+
+                                <div class="sticky top-6 mt-4 bg-white dark:bg-[#0f172e] rounded-xl p-4 shadow-sm border border-slate-200/80 dark:border-slate-700/60 transition-all">
+                                    <!-- Header -->
+                                    <h2 class="text-base font-bold text-slate-900 dark:text-white mb-3 flex items-center justify-between">
+                                        <span>Order Summary</span>
+                                        <span class="w-2 h-2 rounded-full bg-[#16a34a] dark:bg-[#F97316] animate-pulse"></span>
+                                    </h2>
+
+                                    <div class="space-y-2 text-xs">
+
+                                        <!-- Subtotal -->
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-slate-500 dark:text-slate-400 font-medium">Subtotal</span>
+                                            <span class="text-slate-900 dark:text-white font-bold">৳ {{ formatMoney(subtotal) }}</span>
+                                        </div>
+
+                                        <!-- Total Points -->
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-slate-500 dark:text-slate-400 font-medium">Total Points</span>
+                                            <span class="text-[#16a34a] dark:text-[#fb923c] font-bold bg-[#16a34a]/10 dark:bg-[#f97316]/20 px-2 py-0.5 rounded text-[11px] flex items-center gap-1">
+                                                <i class="fa-solid fa-star text-[9px]"></i>
+                                                {{ formatPoints(totalPoint) }} pts
+                                            </span>
+                                        </div>
+
+                                        <!-- Discount -->
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-slate-500 dark:text-slate-400 font-medium">Discount</span>
+                                            <span class="text-red-500 dark:text-red-400 font-bold">- ৳ {{ formatMoney(manualDiscount) }}</span>
+                                        </div>
+
+                                        <!-- VAT -->
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-slate-500 dark:text-slate-400 font-medium">VAT ({{ formatRate(form.vat) }}%)</span>
+                                            <span class="text-slate-900 dark:text-white font-bold">+ ৳ {{ formatMoney(vatAmount) }}</span>
+                                        </div>
+
+                                        <!-- Divider -->
+                                        <div class="h-px bg-slate-100 dark:bg-slate-700/80 my-2"></div>
+
+                                        <!-- Total Payable -->
+                                        <div class="flex justify-between items-center py-0.5">
+                                            <div>
+                                                <span class="text-sm font-bold text-slate-900 dark:text-white block leading-tight">Total Payable</span>
+                                                <span class="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Incl. VAT</span>
+                                            </div>
+                                            <p class="text-xl font-black text-[#16a34a] dark:text-[#F97316] tracking-tight">
+                                                ৳ {{ formatMoney(totalPayable) }}
+                                            </p>
+                                        </div>
+
+                                        <!-- Received Amount -->
+                                        <div class="flex justify-between items-center pt-1 border-t border-dashed border-slate-200 dark:border-slate-700/60">
+                                            <span class="text-slate-500 dark:text-slate-400 font-medium">Received</span>
+                                            <span class="font-bold text-slate-900 dark:text-white">৳ {{ formatMoney(receivedAmount) }}</span>
+                                        </div>
+
+                                        <!-- Return / Change Amount -->
+                                        <div v-if="changeAmount > 0" class="mt-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20">
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+                                                    <i class="fa-solid fa-arrow-rotate-left text-[10px]"></i>
+                                                    Return
+                                                </span>
+                                                <span class="text-emerald-700 dark:text-emerald-400 font-bold">৳ {{ formatMoney(changeAmount) }}</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Due Amount -->
+                                        <div v-if="dueAmount > 0" class="mt-1 px-2.5 py-1.5 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20">
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-red-700 dark:text-red-400 font-semibold flex items-center gap-1.5">
+                                                    <i class="fa-solid fa-clock text-[10px]"></i>
+                                                    Due
+                                                </span>
+                                                <span class="text-red-700 dark:text-red-400 font-bold">৳ {{ formatMoney(dueAmount) }}</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Fully Paid Status -->
+                                        <div v-if="totalPayable > 0 && receivedAmount >= totalPayable && changeAmount === 0"
+                                            class="mt-2 flex items-center justify-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                                            <i class="fa-solid fa-circle-check"></i>
+                                            Fully Paid
+                                        </div>
+
                                     </div>
                                 </div>
                             </div>
@@ -290,6 +382,8 @@
 
                                 <!-- Order Summary Card -->
                                 <div class="lg:col-span-4 pb-4">
+
+                                    
                                     
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white dark:bg-[#0F172E] p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                                         <!-- Phone Number Input -->
@@ -437,210 +531,19 @@
 
                                     </div>
 
-                                    <div class="sticky mt-4 top-10 bg-white dark:bg-[#0f172e] rounded-2xl p-6 sm:p-8 shadow-md border border-slate-200/80 dark:border-slate-700/60 transition-all">
-                                        <!-- Header -->
-                                        <h2 class="text-xl font-black text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-                                            Order Summary
-                                            <span class="w-2.5 h-2.5 rounded-full bg-[#16a34a] dark:bg-[#F97316] animate-pulse"></span>
-                                        </h2>
+                                    
+                                    <div class="mx-auto">
+                                        <button @click="handleCheckout" :disabled="checkoutLoading || !cartItems?.length" class="w-full mt-8 bg-[#16a34a] hover:bg-[#15803d] dark:bg-[#F97316] hover:dark:bg-[#d85a00] text-white py-4 rounded-xl font-black text-base tracking-wide transition-all shadow-lg shadow-[#16a34a]/20 dark:shadow-none flex items-center justify-center gap-3 group active:scale-[0.99]">
+                                            <span v-if="checkoutLoading">
+                                                <i class="fa-solid fa-spinner fa-spin mr-2"></i>
+                                                Processing...
+                                            </span>
 
-                                        <div class="space-y-4">
-
-                                            <!-- ========================= -->
-                                            <!-- Subtotal -->
-                                            <!-- ========================= -->
-                                            <div class="flex justify-between items-center text-sm">
-                                                <span class="text-slate-500 dark:text-slate-400 font-medium">
-                                                    Subtotal
-                                                </span>
-
-                                                <span class="text-slate-900 dark:text-white font-bold">
-                                                    ৳ {{ formatMoney(subtotal) }}
-                                                </span>
-                                            </div>
-
-
-                                            <!-- ========================= -->
-                                            <!-- Total Points -->
-                                            <!-- ========================= -->
-                                            <div class="flex justify-between items-center text-sm">
-                                                <span class="text-slate-500 dark:text-slate-400 font-medium">
-                                                    Total Points
-                                                </span>
-
-                                                <span
-                                                    class="text-[#16a34a] dark:text-[#fb923c] font-bold bg-[#16a34a]/10 dark:bg-[#f97316]/20 px-2.5 py-1 rounded-lg text-xs flex items-center gap-1"
-                                                >
-                                                    <i class="fa-solid fa-star text-[10px]"></i>
-
-                                                    {{ formatPoints(totalPoint) }} pts
-                                                </span>
-                                            </div>
-
-
-                                            <!-- ========================= -->
-                                            <!-- Discount -->
-                                            <!-- ========================= -->
-                                            <div class="flex justify-between items-center text-sm">
-                                                <span class="text-slate-500 dark:text-slate-400 font-medium">
-                                                    Discount
-                                                </span>
-
-                                                <span class="text-red-500 dark:text-red-400 font-bold">
-                                                    - ৳ {{ formatMoney(manualDiscount) }}
-                                                </span>
-                                            </div>
-
-
-                                            <!-- ========================= -->
-                                            <!-- VAT -->
-                                            <!-- ========================= -->
-                                            <div class="flex justify-between items-center text-sm">
-                                                <span class="text-slate-500 dark:text-slate-400 font-medium">
-                                                    VAT ({{ formatRate(form.vat) }}%)
-                                                </span>
-
-                                                <span class="text-slate-900 dark:text-white font-bold">
-                                                    + ৳ {{ formatMoney(vatAmount) }}
-                                                </span>
-                                            </div>
-
-
-                                            <!-- Divider -->
-                                            <div
-                                                class="h-px bg-slate-100 dark:bg-slate-700 my-5"
-                                            ></div>
-
-
-                                            <!-- ========================= -->
-                                            <!-- Total Payable -->
-                                            <!-- ========================= -->
-                                            <div class="flex justify-between items-end gap-4">
-
-                                                <span
-                                                    class="text-base font-bold text-slate-900 dark:text-white mb-1"
-                                                >
-                                                    Total Payable
-                                                </span>
-
-                                                <div class="text-right">
-
-                                                    <p
-                                                        class="text-3xl font-black text-[#16a34a] dark:text-[#F97316] tracking-tight whitespace-nowrap"
-                                                    >
-                                                        ৳ {{ formatMoney(totalPayable) }}
-                                                    </p>
-
-                                                    <p
-                                                        class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1"
-                                                    >
-                                                        Including VAT
-                                                    </p>
-
-                                                </div>
-                                            </div>
-
-
-                                            <!-- ========================= -->
-                                            <!-- Received Amount -->
-                                            <!-- ========================= -->
-                                            <div
-                                                class="flex justify-between items-center text-sm pt-3"
-                                            >
-                                                <span class="text-slate-500 dark:text-slate-400 font-medium">
-                                                    Received
-                                                </span>
-
-                                                <span class="font-bold text-slate-900 dark:text-white">
-                                                    ৳ {{ formatMoney(receivedAmount) }}
-                                                </span>
-                                            </div>
-
-
-                                            <!-- ========================= -->
-                                            <!-- Return / Change Amount -->
-                                            <!-- ========================= -->
-                                            <div
-                                                v-if="changeAmount > 0"
-                                                class="mt-2 px-3 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20"
-                                            >
-                                                <div class="flex justify-between items-center text-sm">
-
-                                                    <span
-                                                        class="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-2"
-                                                    >
-                                                        <i class="fa-solid fa-arrow-rotate-left text-xs"></i>
-                                                        Return
-                                                    </span>
-
-                                                    <span
-                                                        class="text-emerald-700 dark:text-emerald-400 font-black"
-                                                    >
-                                                        ৳ {{ formatMoney(changeAmount) }}
-                                                    </span>
-
-                                                </div>
-                                            </div>
-
-
-                                            <!-- ========================= -->
-                                            <!-- Due Amount -->
-                                            <!-- ========================= -->
-                                            <div
-                                                v-if="dueAmount > 0"
-                                                class="mt-2 px-3 py-2.5 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20"
-                                            >
-                                                <div class="flex justify-between items-center text-sm">
-
-                                                    <span
-                                                        class="text-red-700 dark:text-red-400 font-semibold flex items-center gap-2"
-                                                    >
-                                                        <i class="fa-solid fa-clock text-xs"></i>
-                                                        Due
-                                                    </span>
-
-                                                    <span
-                                                        class="text-red-700 dark:text-red-400 font-black"
-                                                    >
-                                                        ৳ {{ formatMoney(dueAmount) }}
-                                                    </span>
-
-                                                </div>
-                                            </div>
-
-
-                                            <!-- ========================= -->
-                                            <!-- Fully Paid Status -->
-                                            <!-- ========================= -->
-                                            <div
-                                                v-if="
-                                                    totalPayable > 0 &&
-                                                    receivedAmount >= totalPayable &&
-                                                    changeAmount === 0
-                                                "
-                                                class="mt-3 flex items-center justify-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400"
-                                            >
-                                                <i class="fa-solid fa-circle-check"></i>
-
-                                                Fully Paid
-                                            </div>
-
-                                        </div>
-
-                                        <div class="mx-auto">
-                                            <button @click="handleCheckout" :disabled="checkoutLoading || !cartItems?.length" class="w-full mt-8 bg-[#16a34a] hover:bg-[#15803d] dark:bg-[#F97316] hover:dark:bg-[#d85a00] text-white py-4 rounded-xl font-black text-base tracking-wide transition-all shadow-lg shadow-[#16a34a]/20 dark:shadow-none flex items-center justify-center gap-3 group active:scale-[0.99]">
-                                                <span v-if="checkoutLoading">
-                                                    <i class="fa-solid fa-spinner fa-spin mr-2"></i>
-                                                    Processing...
-                                                </span>
-
-                                                <span v-else>
-                                                    Confirm Purchase
-                                                    <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
-                                                </span>
-                                            </button>
-                                        </div>
-                                        
+                                            <span v-else>
+                                                Confirm Purchase
+                                                <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                                            </span>
+                                        </button>
                                     </div>
                                     
                                 </div>
@@ -651,6 +554,145 @@
 
                 </div>
             </div>
+
+
+
+
+
+
+
+
+            <!-- cart item purchase price update modal -->
+            <div v-if="editModal"
+                class="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+                @click.self="closeEdit">
+                <div
+                    class="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700"
+                >
+
+                    <!-- Header -->
+                    <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-800 dark:text-white">
+                                Edit Purchase Item
+                            </h3>
+
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                {{ editForm.product_name }}
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            @click="closeEdit"
+                            class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500"
+                        >
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <!-- Body -->
+                    <div class="p-5 space-y-4">
+
+                        <!-- Purchase Price -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                                Purchase Price
+                            </label>
+
+                            <input
+                                v-model.number="editForm.price"
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            />
+                        </div>
+
+                        <!-- Quantity -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                                Quantity
+                            </label>
+
+                            <input
+                                v-model.number="editForm.quantity"
+                                type="number"
+                                min="1"
+                                step="1"
+                                class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            />
+                        </div>
+
+                        <!-- Sale Price -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                                Sale Price
+                            </label>
+
+                            <input
+                                v-model.number="editForm.sale_price"
+                                type="number"
+                                min="1"
+                                step="1"
+                                class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            />
+                        </div>
+
+                        <!-- Total -->
+                        <div class="flex justify-between items-center px-3 py-2.5 rounded-lg bg-slate-100 dark:bg-slate-800">
+                            <span class="text-xs font-semibold text-slate-500">
+                                Total
+                            </span>
+
+                            <span class="text-sm font-black text-emerald-600 dark:text-orange-400">
+                                ৳{{
+                                    (
+                                        Number(editForm.price || 0) *
+                                        Number(editForm.quantity || 0)
+                                    ).toLocaleString()
+                                }}
+                            </span>
+                        </div>
+
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="flex justify-end gap-2 px-5 py-4 border-t border-slate-200 dark:border-slate-700">
+
+                        <button
+                            type="button"
+                            @click="closeEdit"
+                            class="px-4 py-2 rounded-lg text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+                        >
+                            Cancel
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="updateCartItem"
+                            :disabled="checkoutLoading"
+                            class="px-4 py-2 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                            <i
+                                v-if="checkoutLoading"
+                                class="fa-solid fa-spinner fa-spin mr-1"
+                            ></i>
+
+                            Update
+                        </button>
+
+                    </div>
+
+                </div>
+            </div>
+
+
+
+
+
+
+
 
         </div>
     </div>
@@ -1194,6 +1236,75 @@ async function remove(item) {
     }
 }
 
+
+const editModal = ref(false);
+
+const editForm = reactive({
+    id: null,
+    product_id: null,
+    product_name: "",
+    price: 0,
+    sale_price: 0,
+    quantity: 1,
+});
+
+const openEdit = (item) => {
+    editForm.id = item.id;
+    editForm.product_id = item.product_id;
+    editForm.product_name = item.product?.name || "";
+    editForm.price = Number(item.price || 0);
+    editForm.sale_price = Number(item.sale_price || 0);
+    editForm.quantity = Number(item.quantity || 1);
+
+    editModal.value = true;
+};
+
+const closeEdit = () => {
+    editModal.value = false;
+};
+
+const updateCartItem = async () => {
+    if (!editForm.id) return;
+
+    if (Number(editForm.price) <= 0) {
+        errorMsg.value = "Purchase price must be greater than 0.";
+        return;
+    }
+
+    if (Number(editForm.quantity) < 1) {
+        errorMsg.value = "Quantity must be at least 1.";
+        return;
+    }
+
+    try {
+        checkoutLoading.value = true;
+
+        const res = await api.put(
+            `/purchase/cart/${editForm.id}`,
+            {
+                price: Number(editForm.price),
+                quantity: Number(editForm.quantity),
+                sale_price: Number(editForm.sale_price),
+            }
+        );
+
+        if (res.data?.success) {
+            editModal.value = false;
+            await getCartItems();
+
+            successMsg.value =
+                res.data?.message || "Cart item updated successfully.";
+        }
+    } catch (error) {
+        console.error("Update cart item error:", error);
+
+        errorMsg.value =
+            error.response?.data?.message ||
+            "Unable to update cart item.";
+    } finally {
+        checkoutLoading.value = false;
+    }
+};
 
 
 

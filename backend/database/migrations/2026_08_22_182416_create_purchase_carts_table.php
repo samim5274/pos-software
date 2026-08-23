@@ -14,23 +14,29 @@ return new class extends Migration
         Schema::create('purchase_carts', function (Blueprint $table) {
             $table->id();
 
-            $table->string('reg')->index();
+            $table->string('reg', 100)->index();
 
-            // Foreign Keys
-            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('restrict');
+            $table->foreignId('user_id')->constrained('users')->restrictOnDelete();
 
-            $table->foreignId('product_id')->constrained('products')->onDelete('restrict');
+            $table->foreignId('product_id')->constrained('products')->restrictOnDelete();
 
-            // Product Details (Snapshot)
-            $table->integer('quantity')->default(1);
-            $table->decimal('price', 12, 2)->default(0.00)->comment('Price per unit at the time of adding');
-            $table->decimal('discount', 12, 2)->default(0.00)->comment('Any discount applied');
-            $table->decimal('total_amount', 12, 2)->default(0.00)->comment('Final amount payable after discounts');
+            $table->unsignedInteger('quantity')->default(1);
+
+            $table->decimal('price', 14, 2)->default(0.00)->comment('Purchase price per unit');
+
+            $table->decimal('total_amount', 14, 2)->default(0.00)->comment('Purchase total amount');
+
+            $table->decimal('sale_price', 14, 2)->default(0.00)->comment('Expected sale price per unit');
 
             $table->text('note')->nullable();
+
             $table->timestamps();
 
-            // Indexing for performance
+            $table->unique(
+                ['user_id', 'reg', 'product_id'],
+                'purchase_cart_user_reg_product_unique'
+            );
+
             $table->index(['user_id', 'reg']);
         });
     }

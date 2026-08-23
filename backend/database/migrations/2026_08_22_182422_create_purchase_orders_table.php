@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
 
             // Order Information
-            $table->string('reg')->unique();
+            $table->string('reg')->index();
             $table->string('order_number')->unique();
             $table->string('slug')->unique();
             $table->date('order_date')->index();
@@ -54,7 +54,6 @@ return new class extends Migration
             ])->default('cash')->index();
 
             $table->char('currency', 3)->default('BDT');
-            $table->integer('point')->default(0);
 
             // Status
             $table->enum('status', [

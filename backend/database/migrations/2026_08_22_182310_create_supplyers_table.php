@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('code', 50)->unique()->nullable();
 
             // Contact Information
-            $table->string('phone', 20)->nullable();
+            $table->string('phone', 20)->nullable()->unique();
             $table->string('phone_alt', 20)->nullable();
             $table->string('email', 150)->nullable();
 

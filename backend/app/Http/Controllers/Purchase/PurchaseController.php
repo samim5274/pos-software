@@ -4,14 +4,12 @@ namespace App\Http\Controllers\Purchase;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
-use App\Models\User;
 use App\Models\Product;
 use App\Models\Stock;
 use App\Models\PurchaseCart;
@@ -20,6 +18,7 @@ use App\Models\Supplyer;
 use App\Models\PurchaseOrderPayment;
 use App\Services\PurchaseRegGenerator;
 use App\Http\Requests\CheckOutPurchaseOrderRequest;
+use App\Http\Requests\UpdatePurchaseCartRequest;
 
 class PurchaseController extends Controller
 {
@@ -61,8 +60,8 @@ class PurchaseController extends Controller
     public function adminAddToCart(Request $request)
     {
         $data = $request->validate([
-            'product_id'    => ['required', 'exists:products,id'],
-            'quantity'      => ['nullable', 'integer', 'min:1'],
+            'product_id' => ['required', 'exists:products,id'],
+            'quantity'   => ['nullable', 'integer', 'min:1'],
         ]);
 
         $user = auth()->user();
@@ -76,118 +75,97 @@ class PurchaseController extends Controller
 
         $requestedQty = (int) ($data['quantity'] ?? 1);
 
-
-
-        try{
+        try {
             return DB::transaction(function () use ($data, $user, $requestedQty) {
 
-                $product = Product::lockForUpdate()->find($data['product_id']);
+                // Lock product row
+                $product = Product::query()
+                    ->lockForUpdate()
+                    ->find($data['product_id']);
+
                 if (!$product) {
                     throw ValidationException::withMessages([
-                        'product_id' => 'Product not found.',
+                        'product_id' => ['Product not found.'],
                     ]);
                 }
+
                 if (!$product->is_active) {
                     throw ValidationException::withMessages([
-                        'product_id' => 'This product is currently inactive.',
-                    ]);
-                }
-                if ((int) $product->stock_quantity <= 0) {
-                    throw ValidationException::withMessages([
-                        'product_id' => 'This product is out of stock.',
+                        'product_id' => ['This product is currently inactive.'],
                     ]);
                 }
 
+                // Generate current purchase cart registration
                 $reg = PurchaseRegGenerator::generateOrderReg($user->id);
+
                 if (!$reg) {
                     throw ValidationException::withMessages([
-                        'reg' => 'Failed to generate cart session.',
+                        'reg' => ['Failed to generate cart session.'],
                     ]);
                 }
 
-                $basePrice = (float) $product->price;
-                $discountAmount = (float) ($product->discount ?? 0);
-                $finalPrice = max(0, $basePrice - $discountAmount);
+                $basePrice = round(max(0, (float) $product->purchase_price), 2);
+                $salePrice = round(max(0, (float) $product->price), 2);
 
-                // ======================
-                // Cart item find
-                // ======================
-                $query = PurchaseCart::where('reg', $reg)->where('product_id', $product->id);
+                // Find user's cart item and lock it
+                $cartItem = PurchaseCart::query()
+                    ->where('user_id', $user->id)
+                    ->where('reg', $reg)
+                    ->where('product_id', $product->id)
+                    ->lockForUpdate()
+                    ->first();
 
-                $cartItem = $query->first();
-
-                // ======================
-                // Quantity logic
-                // ======================
-                $requestedQty = 1;
-                $currentQty = $cartItem->quantity ?? 0;
+                $currentQty = (int) ($cartItem?->quantity ?? 0);
                 $newQty = $currentQty + $requestedQty;
 
-                // ======================
-                // Save cart
-                // ======================
+                $totalAmount = round($basePrice * $newQty, 2);
+
                 if ($cartItem) {
+
                     $cartItem->update([
-                        'quantity'          => $newQty,
-                        'price'             => $basePrice,
-                        'discount'          => $discountAmount,
-                        'total_amount'    => $finalPrice,
+                        'quantity'     => $newQty,
+                        'price'        => $basePrice,
+                        'sale_price'   => $salePrice,
+                        'total_amount' => $totalAmount,
                     ]);
 
                 } else {
+
                     $cartItem = PurchaseCart::create([
-                        'reg'               => $reg,
-                        'user_id'           => $user->id,
-                        'product_id'        => $product->id,
-                        'quantity'          => $requestedQty,
-                        'price'             => $basePrice,
-                        'discount'          => $discountAmount,
-                        'total_amount'      => $finalPrice,
-                        'point'             => $product->point,
-                    ]);
-
-
-                }
-
-                $stock = Stock::where('reg', $reg)->where('product_id', $product->id )->first();
-
-                if($stock) {
-                    $stock->update([
-                        'stockIn' => $newQty,
-                    ]);
-                } else {
-                    Stock::Create([
-                        'reg' => $reg,
-                        'date' => now()->toDateString(),
-                        'product_id' => $product->id,
-                        'stockIn' => $newQty,
-                        'remark' => 'add to cart by : '.  $user->name,
+                        'reg'          => $reg,
+                        'user_id'      => $user->id,
+                        'product_id'   => $product->id,
+                        'quantity'     => $requestedQty,
+                        'price'        => $basePrice,
+                        'sale_price'   => $salePrice,
+                        'total_amount' => round($basePrice * $requestedQty, 2),
                     ]);
                 }
 
-                // if($product){
-                //     $product->stock_quantity = $product->stock_quantity - $requestedQty;
-                //     $product->update();
-                // }
-
-                // ======================
-                // RESPONSE (OUTSIDE EXCEPTION FLOW STYLE)
-                // ======================
                 return response()->json([
                     'success' => true,
                     'message' => 'Product added to cart successfully.',
                     'data' => [
                         'cart_id'    => $cartItem->id,
                         'product_id' => $product->id,
-                        'quantity'   => $cartItem->quantity,
-                        'price'      => (float) $finalPrice,
-                        'total'      => (float) ($finalPrice * $cartItem->quantity)
-                    ]
+                        'quantity'   => (int) $cartItem->quantity,
+                        'price'      => (float) $cartItem->price,
+                        'total'      => (float) $cartItem->total_amount,
+                    ],
                 ], 201);
-
             });
-        } catch (\Exception $e) {
-            Log::error('POS Add To Cart Failed', [
+
+        } catch (ValidationException $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors'  => $e->errors(),
+            ], 422);
+
+        } catch (\Throwable $e) {
+
+            Log::error('Purchase Add To Cart Failed', [
                 'user_id'    => $user->id,
                 'product_id' => $data['product_id'] ?? null,
                 'quantity'   => $requestedQty,
@@ -199,10 +177,6 @@ class PurchaseController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Unable to add product to cart. Please try again.',
-                // debug only
-                // 'message' => $e->getMessage(),
-                // 'file'    => $e->getFile(),
-                // 'line'    => $e->getLine(),
             ], 500);
         }
     }
@@ -210,8 +184,8 @@ class PurchaseController extends Controller
     public function adminAddToCartSearch(Request $request)
     {
         $data = $request->validate([
-            'product'    => ['required', 'string'],
-            'quantity'      => ['nullable', 'integer', 'min:1'],
+            'product'  => ['required', 'string', 'max:255'],
+            'quantity' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $user = auth()->user();
@@ -223,259 +197,155 @@ class PurchaseController extends Controller
             ], 401);
         }
 
+        $search = trim($data['product']);
         $requestedQty = (int) ($data['quantity'] ?? 1);
 
-        try{
-            return DB::transaction(function () use ($data, $user, $requestedQty) {
+        try {
+            return DB::transaction(function () use ($data, $user, $search, $requestedQty) {
 
-                $search = trim($data['product']);
-
-               $product = Product::lockForUpdate()
+                /*
+                * Product search
+                */
+                $product = Product::query()
                     ->where(function ($query) use ($search) {
-                        $query->where('id', $search)
-                            ->orWhere('sku', $search)
+
+                        $query->where('sku', $search)
                             ->orWhere('slug', $search)
+                            ->orWhere('sku', 'LIKE', "{$search}%")
+                            ->orWhere('slug', 'LIKE', "{$search}%")
                             ->orWhere('name', 'LIKE', "%{$search}%");
+
+                        if (ctype_digit($search)) {
+                            $query->orWhere('id', (int) $search);
+                        }
                     })
+                    ->lockForUpdate()
                     ->first();
+
                 if (!$product) {
                     throw ValidationException::withMessages([
-                        'product' => 'Product not found.',
+                        'product' => ['Product not found.'],
                     ]);
                 }
+
                 if (!$product->is_active) {
                     throw ValidationException::withMessages([
-                        'product' => 'This product is currently inactive.',
-                    ]);
-                }
-                if ((int) $product->stock_quantity <= 0) {
-                    throw ValidationException::withMessages([
-                        'product' => 'This product is out of stock.',
+                        'product' => ['This product is currently inactive.'],
                     ]);
                 }
 
+                /*
+                * Generate current purchase cart registration
+                */
                 $reg = PurchaseRegGenerator::generateOrderReg($user->id);
+
                 if (!$reg) {
                     throw ValidationException::withMessages([
-                        'reg' => 'Failed to generate cart session.',
+                        'reg' => ['Failed to generate cart session.'],
                     ]);
                 }
 
-                $basePrice = (float) $product->price;
-                $discountAmount = (float) ($product->discount ?? 0);
-                $finalPrice = max(0, $basePrice - $discountAmount);
+                $basePrice = round(max(0, (float) $product->purchase_price), 2);
+                $salePrice = round(max(0, (float) $product->price), 2);
 
-                // ======================
-                // Cart item find
-                // ======================
-                $query = PurchaseCart::where('reg', $reg)->where('product_id', $product->id);
+                /*
+                * Find user's cart item and lock it
+                */
+                $cartItem = PurchaseCart::query()
+                    ->where('user_id', $user->id)
+                    ->where('reg', $reg)
+                    ->where('product_id', $product->id)
+                    ->lockForUpdate()
+                    ->first();
 
-                $cartItem = $query->first();
-
-                // ======================
-                // Quantity logic
-                // ======================
-                $currentQty = $cartItem->quantity ?? 0;
+                $currentQty = (int) ($cartItem?->quantity ?? 0);
                 $newQty = $currentQty + $requestedQty;
 
-                // ======================
-                // Save cart
-                // ======================
+                $totalAmount = round($basePrice * $newQty, 2);
+
+                /*
+                * Update / create cart item
+                */
                 if ($cartItem) {
+
                     $cartItem->update([
-                        'quantity'          => $newQty,
-                        'price'             => $basePrice,
-                        'discount'          => $discountAmount,
-                        'total_amount'    => $finalPrice,
+                        'quantity'     => $newQty,
+                        'price'        => $basePrice,
+                        'sale_price'   => $salePrice,
+                        'total_amount' => $totalAmount,
                     ]);
+
                 } else {
+
                     $cartItem = PurchaseCart::create([
-                        'reg'               => $reg,
-                        'user_id'           => $user->id,
-                        'product_id'        => $product->id,
-                        'quantity'          => $requestedQty,
-                        'price'             => $basePrice,
-                        'discount'          => $discountAmount,
-                        'total_amount'    => $finalPrice,
-                        'point'             => $product->point,
+                        'reg'          => $reg,
+                        'user_id'      => $user->id,
+                        'product_id'   => $product->id,
+                        'quantity'     => $requestedQty,
+                        'price'        => $basePrice,
+                        'sale_price'   => $salePrice,
+                        'total_amount' => round($basePrice * $requestedQty, 2),
                     ]);
                 }
 
-                $stock = Stock::where('reg', $reg)->where('product_id', $product->id )->first();
-
-                if($stock) {
-                    $stock->update([
-                        'stockIn' => $newQty,
-                    ]);
-                } else {
-                    Stock::Create([
-                        'reg' => $reg,
-                        'date' => now()->toDateString(),
-                        'product_id' => $product->id,
-                        'stockIn' => $newQty,
-                        'remark' => 'add to cart by : '.  $user->name,
-                    ]);
-                }
-
-                // if($product){
-                //     $product->stock_quantity = $product->stock_quantity - $requestedQty;
-                //     $product->update();
-                // }
-
-                // ======================
-                // RESPONSE (OUTSIDE EXCEPTION FLOW STYLE)
-                // ======================
                 return response()->json([
                     'success' => true,
                     'message' => 'Product added to cart successfully.',
                     'data' => [
                         'cart_id'    => $cartItem->id,
                         'product_id' => $product->id,
-                        'quantity'   => $cartItem->quantity,
-                        'price'      => (float) $finalPrice,
-                        'total'      => (float) ($finalPrice * $cartItem->quantity)
-                    ]
+                        'quantity'   => (int) $cartItem->quantity,
+                        'price'      => (float) $cartItem->price,
+                        'total'      => (float) $cartItem->total_amount,
+                    ],
                 ], 201);
-
             });
-        } catch (\Exception $e) {
-            Log::error('POS Add To Cart Failed', [
-                'user_id'    => $user->id,
-                'product_id' => $data['product_id'] ?? null,
-                'quantity'   => $requestedQty,
-                'message'    => $e->getMessage(),
-                'file'       => $e->getFile(),
-                'line'       => $e->getLine(),
+
+        } catch (ValidationException $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors'  => $e->errors(),
+            ], 422);
+
+        } catch (\Throwable $e) {
+
+            Log::error('Purchase Add To Cart Search Failed', [
+                'user_id'  => $user->id,
+                'product'  => $data['product'] ?? null,
+                'quantity' => $requestedQty,
+                'message'  => $e->getMessage(),
+                'file'     => $e->getFile(),
+                'line'     => $e->getLine(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Unable to add product to cart. Please try again.',
-                // debug only
-                // 'message' => $e->getMessage(),
-                // 'file'    => $e->getFile(),
-                // 'line'    => $e->getLine(),
             ], 500);
         }
     }
 
-    public function updateQty(Request $request, $reg, $product_id)
+    public function updateQty(Request $request, string $reg, int $product_id)
     {
-        $request->validate([
-            'quantity' => 'required|integer|min:1|max:100',
+        $data = $request->validate([
+            'quantity' => ['required', 'integer', 'min:1'],
         ]);
-
-        try {
-            return DB::transaction(function () use ($request, $reg, $product_id) {
-
-                $cartItem = PurchaseCart::where('reg', $reg)
-                    ->where('product_id', $product_id)
-                    ->lockForUpdate()
-                    ->first();
-
-                if (!$cartItem) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Cart item not found',
-                    ], 404);
-                }
-
-                $oldQty = $cartItem->quantity;
-                $newQty = $request->quantity;
-
-                // Quantity difference
-                $difference = $newQty - $oldQty;
-
-                // Update cart quantity
-                $cartItem->update([
-                    'quantity' => $newQty,
-                ]);
-
-                // Update stock record
-                $stock = Stock::where('reg', $reg)
-                    ->where('product_id', $product_id)
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($stock) {
-                    $stock->update([
-                        'stockIn' => $newQty,
-                    ]);
-                }
-
-                // Update product stock
-                $product = Product::lockForUpdate()->find($product_id);
-
-                if ($product && $difference != 0) {
-
-                    if($product->stock_quantity <= 0) {
-                        throw ValidationException::withMessages([
-                            'quantity' => "Only {$product->stock_quantity} items are available in stock.",
-                        ]);
-                    }
-
-                    // if ($difference > 0) {
-                    //     // Cart quantity increased
-                    //     $product->increment(
-                    //         'stock_quantity',
-                    //         $difference
-                    //     );
-
-                    // } else {
-                    //     // Cart quantity decreased
-                    //     $product->increment(
-                    //         'stock_quantity',
-                    //         abs($difference)
-                    //     );
-                    // }
-                }
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Qty updated successfully',
-                    'quantity' => $newQty,
-                ]);
-            });
-
-        } catch (\Throwable $e) {
-
-            \Log::error('Cart Qty Update Error', [
-                'reg' => $reg,
-                'product_id' => $product_id,
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Something went wrong',
-            ], 500);
-        }
-    }
-
-    public function removeToCart(Request $request, $cart_id, $reg, $product_id)
-    {
 
         $user = auth()->user();
 
         if (!$user) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized'
+                'message' => 'Unauthorized.',
             ], 401);
         }
 
-        try{
-            return DB::transaction(function () use ($cart_id, $reg, $product_id, $user) {
+        try {
+            return DB::transaction(function () use ($data, $reg, $product_id, $user) {
 
-                if (!$reg || !$product_id) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Invalid request data'
-                    ], 422);
-                }
-
-                $cartItem = PurchaseCart::where('id', $cart_id)
+                $cartItem = PurchaseCart::query()
                     ->where('user_id', $user->id)
                     ->where('reg', $reg)
                     ->where('product_id', $product_id)
@@ -485,52 +355,208 @@ class PurchaseController extends Controller
                 if (!$cartItem) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Cart item not found'
+                        'message' => 'Cart item not found.',
+                    ], 404);
+                }
+
+                $newQty = (int) $data['quantity'];
+
+                $price = round((float) $cartItem->price, 2);
+
+                $totalAmount = round($price * $newQty, 2);
+
+                $cartItem->update([
+                    'quantity'     => $newQty,
+                    'total_amount' => $totalAmount,
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Quantity updated successfully.',
+                    'data' => [
+                        'cart_id'     => $cartItem->id,
+                        'product_id'  => $cartItem->product_id,
+                        'quantity'    => $newQty,
+                        'price'       => (float) $price,
+                        'total_amount'=> (float) $totalAmount,
+                    ],
+                ], 200);
+            }, 3);
+
+        } catch (\Throwable $e) {
+
+            Log::error('Purchase cart quantity update failed', [
+                'user_id'    => $user->id,
+                'reg'        => $reg,
+                'product_id' => $product_id,
+                'quantity'   => $data['quantity'] ?? null,
+                'message'    => $e->getMessage(),
+                'file'       => $e->getFile(),
+                'line'       => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to update cart quantity. Please try again.',
+            ], 500);
+        }
+    }
+
+    public function updateCartItem(UpdatePurchaseCartRequest $request, int $id)
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 401);
+        }
+
+        try {
+            $validated = $request->validated();
+
+            $cartItem = DB::transaction(function () use ($validated, $id, $user) {
+
+                $cartItem = PurchaseCart::query()
+                    ->where('id', $id)
+                    ->where('user_id', $user->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$cartItem) {
+                    throw ValidationException::withMessages([
+                        'cart' => ['Cart item not found.'],
+                    ]);
+                }
+
+                $price = round(
+                    max(0, (float) $validated['price']),
+                    2
+                );
+
+                $salePrice = round(
+                    max(0, (float) $validated['sale_price']),
+                    2
+                );
+
+                $quantity = (int) $validated['quantity'];
+
+                $totalAmount = round(
+                    $price * $quantity,
+                    2
+                );
+
+                $cartItem->update([
+                    'price'        => $price,
+                    'quantity'     => $quantity,
+                    'sale_price'   => $salePrice,
+                    'total_amount' => $totalAmount,
+                ]);
+
+                return $cartItem
+                    ->fresh()
+                    ->load('product');
+            }, 3);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cart item updated successfully.',
+                'data' => $cartItem,
+            ], 200);
+
+        } catch (ValidationException $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors'  => $e->errors(),
+            ], 422);
+
+        } catch (\Throwable $e) {
+
+            Log::error('Purchase cart item update failed', [
+                'user_id'     => $user->id,
+                'cart_item_id'=> $id,
+                'message'     => $e->getMessage(),
+                'file'        => $e->getFile(),
+                'line'        => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to update cart item. Please try again.',
+            ], 500);
+        }
+    }
+
+    public function removeToCart(int $cart_id, string $reg, int $product_id)
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 401);
+        }
+
+        try {
+
+            return DB::transaction(function () use (
+                $cart_id,
+                $reg,
+                $product_id,
+                $user
+            ) {
+
+                $cartItem = PurchaseCart::query()
+                    ->where('id', $cart_id)
+                    ->where('user_id', $user->id)
+                    ->where('reg', $reg)
+                    ->where('product_id', $product_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$cartItem) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Cart item not found.',
                     ], 404);
                 }
 
                 $cartItem->delete();
 
-                $stock = Stock::where('reg', $reg)
-                    ->where('product_id', $product_id)
-                    ->first();
-
-                if ($stock) {
-                    $stock->delete();
-                }
-
-                $product = Product::lockForUpdate()->find($product_id);
-
-                // if($product){
-                //     $product->decrement('stock_quantity', $cartItem->quantity);
-                // }
-
-                $remaining = PurchaseCart::where('user_id', $user->id)
+                $remainingItems = PurchaseCart::query()
+                    ->where('user_id', $user->id)
                     ->where('reg', $reg)
                     ->count();
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Item removed from cart successfully',
-                    'remaining_items' => $remaining
+                    'message' => 'Item removed successfully.',
+                    'remaining_items' => $remainingItems,
                 ], 200);
-            });
+
+            }, 3);
 
         } catch (\Throwable $e) {
-            Log::error('Cart Remove Error', [
+
+            Log::error('Purchase cart remove failed', [
                 'user_id'    => $user->id,
                 'cart_id'    => $cart_id,
                 'reg'        => $reg,
                 'product_id' => $product_id,
-                'error'      => $e->getMessage(),
+                'message'    => $e->getMessage(),
                 'file'       => $e->getFile(),
                 'line'       => $e->getLine(),
             ]);
 
-
             return response()->json([
                 'success' => false,
-                'message' => 'Something went wrong'
+                'message' => app()->isProduction()
+                    ? 'Unable to remove cart item.'
+                    : $e->getMessage(),
             ], 500);
         }
     }
@@ -538,7 +564,16 @@ class PurchaseController extends Controller
     public function getCartItem($reg)
     {
         try {
-            $items = PurchaseCart::with(['product.images','user'])
+            $user = auth()->user();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized.',
+                ], 401);
+            }
+
+            $items = PurchaseCart::with(['product.images','user'])->where('user_id', $user->id)
                         ->where('reg', $reg)->get();
 
             if ($items->isEmpty()) {
@@ -581,9 +616,10 @@ class PurchaseController extends Controller
 
         try {
             $result = DB::transaction(function () use ($validated, $user, $reg, $request) {
+
                 $cartItems = PurchaseCart::query()
-                    ->where('reg', $reg)
                     ->where('user_id', $user->id)
+                    ->where('reg', $reg)
                     ->lockForUpdate()
                     ->get();
 
@@ -632,15 +668,11 @@ class PurchaseController extends Controller
                 }
 
                 $subtotal = round($cartItems->sum(
-                    fn($item) => (float) $item->price * (int) $item->quantity
-                ), 2);
-
-                $cartDiscount = round($cartItems->sum(
-                    fn($item) => (float) ($item->discount ?? 0) * (int) $item->quantity
+                    fn ($item) => (float) $item->price * (int) $item->quantity
                 ), 2);
 
                 $manualDiscount = round(max(0, (float) ($validated['discount'] ?? 0)), 2);
-                $discount = round(min($subtotal, $cartDiscount + $manualDiscount), 2);
+                $discount = round(min($subtotal, $manualDiscount), 2);
 
                 $vatPercentage = round(
                     min(100, max(0, (float) ($validated['vat'] ?? 0))),
@@ -682,10 +714,6 @@ class PurchaseController extends Controller
                     ]);
                 }
 
-                $point = (int) $cartItems->sum(
-                    fn($item) => (int) ($item->point ?? 0) * (int) $item->quantity
-                );
-
                 if ($payableAmount <= 0 || $paidAmount >= $payableAmount) {
                     $orderStatus = PurchaseOrder::STATUS_COMPLETED;
                 } elseif ($paidAmount > 0) {
@@ -714,7 +742,6 @@ class PurchaseController extends Controller
                     'payable_amount' => $payableAmount,
                     'payment_method' => $paymentMethod,
                     'currency' => PurchaseOrder::CURRENCY_BDT,
-                    'point' => $point,
                     'status' => $orderStatus,
                     'completed_at' => $orderStatus === PurchaseOrder::STATUS_COMPLETED ? now() : null,
                     'remarks' => $validated['remarks'] ?? "Purchase order created by user: {$user->name}",
@@ -741,6 +768,47 @@ class PurchaseController extends Controller
                         'user_agent' => $request->userAgent(),
                     ]);
                 }
+
+                foreach ($cartItems as $item) {
+                    $product = Product::query()
+                        ->lockForUpdate()
+                        ->find($item->product_id);
+
+                    if (!$product) {
+                        throw ValidationException::withMessages([
+                            'product' => ["Product not found: {$item->product_id}"],
+                        ]);
+                    }
+
+                    $quantity = (int) $item->quantity;
+
+                    if ($quantity < 1) {
+                        throw ValidationException::withMessages([
+                            'quantity' => ["Invalid quantity for product {$product->id}."],
+                        ]);
+                    }
+
+                    $product->increment('stock_quantity', $quantity);
+
+                    Stock::create([
+                        'product_id' => $product->id,
+                        'batch_no' => $item->batch_no ?? null,
+                        'reg' => $reg,
+                        'date' => now()->toDateString(),
+                        'purchase_price' => round((float) $item->price, 2),
+                        'sale_price' => round((float) ($item->sale_price ?? $product->price), 2),
+                        'stockIn' => $quantity,
+                        'stockOut' => 0,
+                        'expiry_date' => $item->expiry_date ?? null,
+                        'remark' => "Purchase order: {$order->order_number}",
+                        'status' => 'active',
+                    ]);
+                }
+
+                PurchaseCart::query()
+                    ->where('user_id', $user->id)
+                    ->where('reg', $reg)
+                    ->delete();
 
                 $order->load(['supplier', 'payments']);
 
@@ -776,10 +844,11 @@ class PurchaseController extends Controller
 
         } catch (\Throwable $e) {
             Log::error('Purchase order confirmation failed', [
-                'user_id' => $user?->id,
+                'user_id' => $user->id,
                 'reg' => $reg,
                 'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
             ]);
 
             return response()->json([
