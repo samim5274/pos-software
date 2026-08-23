@@ -4,11 +4,21 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PurchaseOrder extends Model
 {
     use HasFactory, SoftDeletes;
+
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_UNPAID = 'unpaid';
+    public const STATUS_PARTIALLY_PAID = 'partially_paid';
+    public const STATUS_COMPLETED = 'completed';
+    public const STATUS_RETURNED = 'returned';
+
+    public const CURRENCY_BDT = 'BDT';
 
     protected $fillable = [
         'reg',
@@ -58,28 +68,49 @@ class PurchaseOrder extends Model
         'is_due',
     ];
 
-    // Created by user
-    public function user()
+    public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id');
     }
 
-    // Supplier
-    public function supplier()
+    public function supplier(): BelongsTo
     {
-        return $this->belongsTo(Supplier::class);
+        return $this->belongsTo(Supplyer::class, 'supplier_id');
     }
 
-    // User who returned the purchase order
-    public function returnedBy()
+    public function returnedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'returned_by');
     }
 
-    // Purchase order items
-    public function items()
+    public function items(): HasMany
     {
         return $this->hasMany(PurchaseCart::class, 'reg', 'reg');
     }
 
+    public function payments(): HasMany
+    {
+        return $this->hasMany(
+            PurchaseOrderPayment::class,
+            'order_id',
+            'id'
+        );
+    }
+
+    public function getPaidAmountAttribute(): float
+    {
+        return (float) $this->payments()
+            ->where('payment_type', PurchaseOrderPayment::TYPE_PAYMENT)
+            ->sum('amount');
+    }
+
+    public function getIsPaidAttribute(): bool
+    {
+        return $this->paid_amount >= (float) $this->payable_amount;
+    }
+
+    public function getIsDueAttribute(): bool
+    {
+        return (float) $this->due_amount > 0;
+    }
 }

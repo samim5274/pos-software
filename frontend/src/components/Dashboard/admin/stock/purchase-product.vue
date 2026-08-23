@@ -162,6 +162,7 @@
                                     <div class="relative w-full sm:w-1/2">
                                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
                                         <input
+                                            ref="searchInput"
                                             v-model="searchQuery"
                                             type="text"
                                             @keydown.enter="handleSearch"
@@ -179,6 +180,10 @@
                                     </div>
                                     <!-- Filter Dropdown & Badge -->
                                     <div class="flex items-center gap-2 w-full sm:w-1/2 justify-end">
+                                        
+                                        <input type="number" min="1" v-model.number="quantity" value="1" @keydown.enter="handleSearch"
+                                        class="w-full h-8 px-2 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:border-emerald-500 dark:focus:border-orange-500 transition-colors">
+                                        
                                         <select
                                             v-model="sortBy"
                                             class="w-full h-8 px-2 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:border-emerald-500 dark:focus:border-orange-500 transition-colors"
@@ -189,8 +194,9 @@
                                             <option value="price_low">Price: Low to High</option>
                                             <option value="price_high">Price: High to Low</option>
                                         </select>
+
                                         <span class="text-[10px] font-extrabold px-2 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-emerald-600 dark:text-orange-400 whitespace-nowrap">
-                                            {{ filteredProducts.length }}
+                                            {{ products.length }}
                                         </span>
                                     </div>
                                 </div>
@@ -253,7 +259,7 @@
                                                     </td>
                                                 </tr>
                                                 <!-- Empty State -->
-                                                <tr v-if="filteredProducts.length === 0">
+                                                <tr v-if="products.length === 0">
                                                     <td colspan="6" class="py-16 text-center">
                                                         <div class="max-w-xs mx-auto flex flex-col items-center justify-center">
                                                             <!-- Icon Container with Subtle Glow & Background -->
@@ -288,18 +294,39 @@
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white dark:bg-[#0F172E] p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                                         <!-- Phone Number Input -->
                                         <div class="space-y-1.5">
-                                            <label for="phone_number" class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                            <label for="supplier_phone" class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
                                                 Customer Phone Number
                                             </label>
-                                            <input type="tel" id="phone_number" name="phone_number" v-model="form.phone_number" placeholder="017XXXXXXXX"
+                                            <input type="tel" id="supplier_phone" name="supplier_phone" v-model="form.supplier_phone" placeholder="017XXXXXXXX"
                                                 class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#16a34a] dark:focus:ring-[#f97316] focus:border-transparent transition-all" />
                                         </div>
                                         <div class="space-y-1.5">
-                                            <label for="customer_name" class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                            <label for="supplier_name" class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
                                                 Customer Name
                                             </label>
-                                            <input type="text" id="customer_name" name="customer_name" v-model="form.customer_name" placeholder="Mr. Hossain"
+                                            <input type="text" id="supplier_name" name="supplier_name" v-model="form.supplier_name" placeholder="Mr. Hossain"
                                                 class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#16a34a] dark:focus:ring-[#f97316] focus:border-transparent transition-all" />
+                                        </div>
+
+                                        <div class="space-y-1.5 md:col-span-2">
+                                            <label for="supplier" class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                                Select Supplier
+                                            </label>
+                                            <select
+                                                v-model="form.supplier_id"
+                                                class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#16a34a] dark:focus:ring-[#f97316] focus:border-transparent transition-all"
+                                            >
+                                                <option :value="null">-- Select Supplier --</option>
+
+                                                <option
+                                                    v-for="supplier in supplyers"
+                                                    :key="supplier.id"
+                                                    :value="supplier.id"
+                                                >
+                                                    {{ supplier.name }} - {{ supplier.company_name }}
+                                                </option>
+                                            </select>
+
                                         </div>
                                     
                                         <!-- Payment Method Selection -->
@@ -412,14 +439,9 @@
 
                                     <div class="sticky mt-4 top-10 bg-white dark:bg-[#0f172e] rounded-2xl p-6 sm:p-8 shadow-md border border-slate-200/80 dark:border-slate-700/60 transition-all">
                                         <!-- Header -->
-                                        <h2
-                                            class="text-xl font-black text-slate-900 dark:text-white mb-6 flex items-center gap-2"
-                                        >
+                                        <h2 class="text-xl font-black text-slate-900 dark:text-white mb-6 flex items-center gap-2">
                                             Order Summary
-
-                                            <span
-                                                class="w-2.5 h-2.5 rounded-full bg-[#16a34a] dark:bg-[#F97316] animate-pulse"
-                                            ></span>
+                                            <span class="w-2.5 h-2.5 rounded-full bg-[#16a34a] dark:bg-[#F97316] animate-pulse"></span>
                                         </h2>
 
                                         <div class="space-y-4">
@@ -604,6 +626,21 @@
                                             </div>
 
                                         </div>
+
+                                        <div class="mx-auto">
+                                            <button @click="handleCheckout" :disabled="checkoutLoading || !cartItems?.length" class="w-full mt-8 bg-[#16a34a] hover:bg-[#15803d] dark:bg-[#F97316] hover:dark:bg-[#d85a00] text-white py-4 rounded-xl font-black text-base tracking-wide transition-all shadow-lg shadow-[#16a34a]/20 dark:shadow-none flex items-center justify-center gap-3 group active:scale-[0.99]">
+                                                <span v-if="checkoutLoading">
+                                                    <i class="fa-solid fa-spinner fa-spin mr-2"></i>
+                                                    Processing...
+                                                </span>
+
+                                                <span v-else>
+                                                    Confirm Purchase
+                                                    <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                                                </span>
+                                            </button>
+                                        </div>
+                                        
                                     </div>
                                     
                                 </div>
@@ -646,8 +683,11 @@ const successMsg = ref("");
 const router = useRouter();
 
 // Filter State Variables
+const searchInput = ref(null);
 const searchQuery = ref('');
+const quantity = ref(1);
 const sortBy = ref('all');
+const supplyer = ref('1');
 const products = ref([]);
 
 
@@ -661,8 +701,9 @@ const products = ref([]);
 // Main Order Form State
 // ==============================
 const form = reactive({
-    customer_name: "",
-    phone_number: "",
+    supplier_id: null,
+    supplier_name: "",
+    supplier_phone: "",
 
     payment_method: "cash",
 
@@ -670,9 +711,9 @@ const form = reactive({
     discount: 0,
 
     received_amount: 0,
+
+    remarks: "",
 });
-
-
 
 
 
@@ -785,6 +826,7 @@ async function handleSearch() {
     
     const cartData = {
         product: searchQuery.value,
+        quantity: Number(quantity.value) || 1,
     };
 
     // console.log('Searching:', cartData)
@@ -800,7 +842,10 @@ async function handleSearch() {
                 product_id: product.id,
             });
             searchQuery.value = "";
+            quantity.value = "1";
             await getCartItems();
+
+            searchInput.value?.focus();
         } else {
             errorMsg.value = res.data?.message || "Something went wrong";
             successMsg.value = null;
@@ -826,11 +871,13 @@ async function handleSearch() {
 
 
 const cartItems = ref([]);
+const supplyers = ref([]);
 async function getCartItems() {
     loading.value = true
     try {
         const res = await api.get(`/purchase`);
-        cartItems.value = res.data.data;
+        cartItems.value = res.data.data.items;
+        supplyers.value = res.data.data.supplyers;
     } catch (err) {
         console.error(err);
         errorMsg.value = err?.response?.data?.message || err?.message || "Something went wrong";
@@ -1209,11 +1256,11 @@ const handleCheckout = async () => {
     }
 
     if (dueAmount.value > 0) {
-        if (!form.phone_number?.trim()) {
+        if (!form.supplier_phone?.trim()) {
             errorMsg.value = "Customer phone number is required for partial payments.";
             return;
         }
-        if (!form.customer_name?.trim()) {
+        if (!form.supplier_name?.trim()) {
             errorMsg.value = "Customer name is required for partial payments.";
             return;
         }
@@ -1234,12 +1281,14 @@ const handleCheckout = async () => {
     }
 
     const checkoutData = {
-        customer_name: form.customer_name?.trim() || null,
-        phone_number: form.phone_number?.trim() || null,
+        supplier_id: form.supplier_id || null,
+        supplier_name: form.supplier_name?.trim() || null,
+        supplier_phone: form.supplier_phone?.trim() || null,
         payment_method: form.payment_method || "cash",
         vat: roundMoney(form.vat),
         discount: roundMoney(manualDiscount.value),
         received_amount: roundMoney(receivedAmount.value),
+        remarks: form.remarks?.trim() || null,
     };
 
     try {
@@ -1253,18 +1302,18 @@ const handleCheckout = async () => {
             form.received_amount = 0;
             form.discount = 0;
             form.vat = 0;
-            form.customer_name = "";
-            form.phone_number = "";
+            form.supplier_name = "";
+            form.supplier_phone = "";
         } else {
             errorMsg.value = res.data?.message || "Checkout failed.";
         }
 
-        const win = window.open("about:blank", "_blank");
-        if(!win){
-            alert("Popup Blocked! Allow popups");
-            return;
-        }
-        win.location.href = `/admin/order/invoice-print/${res.data.data.order.reg}`;
+        // const win = window.open("about:blank", "_blank");
+        // if(!win){
+        //     alert("Popup Blocked! Allow popups");
+        //     return;
+        // }
+        // win.location.href = `/admin/order/invoice-print/${res.data.data.order.reg}`;
     } catch (error) {
         console.error("Checkout Error:", error);
         if (error.response) {

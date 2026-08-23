@@ -8,13 +8,18 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 use App\Models\User;
 use App\Models\Product;
 use App\Models\Stock;
 use App\Models\PurchaseCart;
 use App\Models\PurchaseOrder;
+use App\Models\Supplyer;
+use App\Models\PurchaseOrderPayment;
 use App\Services\PurchaseRegGenerator;
+use App\Http\Requests\CheckOutPurchaseOrderRequest;
 
 class PurchaseController extends Controller
 {
@@ -35,10 +40,21 @@ class PurchaseController extends Controller
             ->where('reg', $reg)
             ->get();
 
+        $supplyers = Supplyer::select([
+            'id',
+            'name',
+            'company_name',
+            'phone',
+            'code',
+        ])->orderBy('name')->get();
+
         return response()->json([
             'message' => 'Cart items',
             'reg' => $reg,
-            'data' => $items
+            'data' => [
+                'items' => $items,
+                'supplyers' => $supplyers,
+            ],
         ], 200);
     }
 
@@ -149,10 +165,10 @@ class PurchaseController extends Controller
                     ]);
                 }
 
-                if($product){
-                    $product->stock_quantity = $product->stock_quantity - $requestedQty;
-                    $product->update();
-                }
+                // if($product){
+                //     $product->stock_quantity = $product->stock_quantity - $requestedQty;
+                //     $product->update();
+                // }
 
                 // ======================
                 // RESPONSE (OUTSIDE EXCEPTION FLOW STYLE)
@@ -259,7 +275,6 @@ class PurchaseController extends Controller
                 // ======================
                 // Quantity logic
                 // ======================
-                $requestedQty = 1;
                 $currentQty = $cartItem->quantity ?? 0;
                 $newQty = $currentQty + $requestedQty;
 
@@ -302,10 +317,10 @@ class PurchaseController extends Controller
                     ]);
                 }
 
-                if($product){
-                    $product->stock_quantity = $product->stock_quantity - $requestedQty;
-                    $product->update();
-                }
+                // if($product){
+                //     $product->stock_quantity = $product->stock_quantity - $requestedQty;
+                //     $product->update();
+                // }
 
                 // ======================
                 // RESPONSE (OUTSIDE EXCEPTION FLOW STYLE)
@@ -399,20 +414,20 @@ class PurchaseController extends Controller
                         ]);
                     }
 
-                    if ($difference > 0) {
-                        // Cart quantity increased
-                        $product->increment(
-                            'stock_quantity',
-                            $difference
-                        );
+                    // if ($difference > 0) {
+                    //     // Cart quantity increased
+                    //     $product->increment(
+                    //         'stock_quantity',
+                    //         $difference
+                    //     );
 
-                    } else {
-                        // Cart quantity decreased
-                        $product->increment(
-                            'stock_quantity',
-                            abs($difference)
-                        );
-                    }
+                    // } else {
+                    //     // Cart quantity decreased
+                    //     $product->increment(
+                    //         'stock_quantity',
+                    //         abs($difference)
+                    //     );
+                    // }
                 }
 
                 return response()->json([
@@ -438,7 +453,8 @@ class PurchaseController extends Controller
         }
     }
 
-    public function removeToCart(Request $request, $cart_id, $reg, $product_id){
+    public function removeToCart(Request $request, $cart_id, $reg, $product_id)
+    {
 
         $user = auth()->user();
 
@@ -450,58 +466,67 @@ class PurchaseController extends Controller
         }
 
         try{
-            if (!$reg || !$product_id) {
+            return DB::transaction(function () use ($cart_id, $reg, $product_id, $user) {
+
+                if (!$reg || !$product_id) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Invalid request data'
+                    ], 422);
+                }
+
+                $cartItem = PurchaseCart::where('id', $cart_id)
+                    ->where('user_id', $user->id)
+                    ->where('reg', $reg)
+                    ->where('product_id', $product_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$cartItem) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Cart item not found'
+                    ], 404);
+                }
+
+                $cartItem->delete();
+
+                $stock = Stock::where('reg', $reg)
+                    ->where('product_id', $product_id)
+                    ->first();
+
+                if ($stock) {
+                    $stock->delete();
+                }
+
+                $product = Product::lockForUpdate()->find($product_id);
+
+                // if($product){
+                //     $product->decrement('stock_quantity', $cartItem->quantity);
+                // }
+
+                $remaining = PurchaseCart::where('user_id', $user->id)
+                    ->where('reg', $reg)
+                    ->count();
+
                 return response()->json([
-                    'success' => false,
-                    'message' => 'Invalid request data'
-                ], 422);
-            }
-
-            $cartItem = PurchaseCart::where('id', $cart_id)
-                ->where('user_id', $user->id)
-                ->where('reg', $reg)
-                ->where('product_id', $product_id)
-                ->first();
-
-            if (!$cartItem) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cart item not found'
-                ], 404);
-            }
-
-            $cartItem->delete();
-
-            $remaining = PurchaseCart::where('user_id', $user->id)
-                ->where('reg', $reg)
-                ->count();
-
-            $stock = Stock::where('reg', $reg)
-                ->where('product_id', $product_id)
-                ->first();
-
-            if ($stock) {
-                $stock->delete();
-            }
-
-            $product = Product::lockForUpdate()->find($product_id);
-
-            if($product){
-                $product->decrement('stock_quantity', $cartItem->quantity);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Item removed from cart successfully',
-                'remaining_items' => $remaining
-            ], 200);
+                    'success' => true,
+                    'message' => 'Item removed from cart successfully',
+                    'remaining_items' => $remaining
+                ], 200);
+            });
 
         } catch (\Throwable $e) {
-            \Log::error('Cart Remove Error', [
-                'user_id' => $user->id,
-                'cart_id' => $cart_id,
-                'error' => $e->getMessage()
+            Log::error('Cart Remove Error', [
+                'user_id'    => $user->id,
+                'cart_id'    => $cart_id,
+                'reg'        => $reg,
+                'product_id' => $product_id,
+                'error'      => $e->getMessage(),
+                'file'       => $e->getFile(),
+                'line'       => $e->getLine(),
             ]);
+
 
             return response()->json([
                 'success' => false,
@@ -542,22 +567,21 @@ class PurchaseController extends Controller
         }
     }
 
-    public function checkOut(CheckOutRequest $request, string $reg)
+    public function confirmOrder(CheckOutPurchaseOrderRequest $request, string $reg)
     {
         $validated = $request->validated();
-
         $user = auth()->user();
+
         if (!$user) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized user',
+                'message' => 'Unauthorized user.',
             ], 401);
         }
 
         try {
             $result = DB::transaction(function () use ($validated, $user, $reg, $request) {
-
-                $cartItems = Cart::query()
+                $cartItems = PurchaseCart::query()
                     ->where('reg', $reg)
                     ->where('user_id', $user->id)
                     ->lockForUpdate()
@@ -569,53 +593,72 @@ class PurchaseController extends Controller
                     ]);
                 }
 
-                $customerPhone = isset($validated['phone_number']) ? trim($validated['phone_number']) : null;
-                $customerName  = isset($validated['customer_name']) ? trim($validated['customer_name']) : null;
+                $supplier = null;
+                $supplierId = $validated['supplier_id'] ?? null;
+                $supplierName = isset($validated['supplier_name']) ? trim($validated['supplier_name']) : null;
+                $supplierPhone = isset($validated['supplier_phone']) ? trim($validated['supplier_phone']) : null;
 
-                $customer = null;
-
-                if ($customerPhone) {
-                    $customer = Customer::query()
-                        ->where('phone', $customerPhone)
+                if ($supplierId) {
+                    $supplier = Supplyer::query()
+                        ->whereKey($supplierId)
                         ->lockForUpdate()
                         ->first();
 
-                    if (!$customer) {
-                        $customer = Customer::create([
-                            'phone'        => $customerPhone,
-                            'customer_name' => $customerName ?: 'Walk-in Customer',
+                    if (!$supplier) {
+                        throw ValidationException::withMessages([
+                            'supplier_id' => ['Selected supplier does not exist.'],
                         ]);
-                    } elseif ( $customerName && blank($customer->customer_name) ) {
-                        $customer->update([
-                            'customer_name' => $customerName,
+                    }
+                } elseif ($supplierPhone) {
+                    $supplier = Supplyer::query()
+                        ->where('phone', $supplierPhone)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (!$supplier) {
+                        if (!$supplierName) {
+                            throw ValidationException::withMessages([
+                                'supplier_name' => ['Supplier name is required when creating a new supplier.'],
+                            ]);
+                        }
+
+                        $supplier = Supplyer::create([
+                            'name' => $supplierName,
+                            'phone' => $supplierPhone,
                         ]);
+                    } elseif ($supplierName && $supplier->name !== $supplierName) {
+                        $supplier->update(['name' => $supplierName]);
                     }
                 }
 
-                $subtotal = round($cartItems->sum(fn ($item) => (float) $item->price * (int) $item->quantity), 2);
+                $subtotal = round($cartItems->sum(
+                    fn($item) => (float) $item->price * (int) $item->quantity
+                ), 2);
 
-                $cartDiscount = round($cartItems->sum(fn ($item) => (float) ($item->discount ?? 0) * (int) $item->quantity), 2);
+                $cartDiscount = round($cartItems->sum(
+                    fn($item) => (float) ($item->discount ?? 0) * (int) $item->quantity
+                ), 2);
 
                 $manualDiscount = round(max(0, (float) ($validated['discount'] ?? 0)), 2);
-
                 $discount = round(min($subtotal, $cartDiscount + $manualDiscount), 2);
 
-                // ---- Percentage-based VAT ----
-                $vatPercentage = round(min(100, max(0, (float) ($validated['vat'] ?? 0))), 2);
+                $vatPercentage = round(
+                    min(100, max(0, (float) ($validated['vat'] ?? 0))),
+                    2
+                );
 
                 $taxableAmount = round(max(0, $subtotal - $discount), 2);
-
                 $vat = round(($taxableAmount * $vatPercentage) / 100, 2);
-                // -------------------------------
-
                 $payableAmount = round(max(0, $taxableAmount + $vat), 2);
 
-                $receivedAmount = round(max(0, (float) ($validated['received_amount'] ?? 0)), 2);
-                $paidAmount     = round(min($receivedAmount, $payableAmount), 2);
+                $receivedAmount = round(
+                    max(0, (float) ($validated['received_amount'] ?? 0)),
+                    2
+                );
 
-                $dueAmount = round(max(0,$payableAmount - $paidAmount),2);
-
-                $changeAmount = round(max(0,$receivedAmount - $payableAmount),2);
+                $paidAmount = round(min($receivedAmount, $payableAmount), 2);
+                $dueAmount = round(max(0, $payableAmount - $paidAmount), 2);
+                $changeAmount = round(max(0, $receivedAmount - $payableAmount), 2);
 
                 if ($payableAmount > 0 && $paidAmount <= 0) {
                     throw ValidationException::withMessages([
@@ -623,94 +666,83 @@ class PurchaseController extends Controller
                     ]);
                 }
 
-                $isPartiallyPaid = $paidAmount < $payableAmount;
-                // --------------------------------------------------------------
-                if ($isPartiallyPaid) {
-                    if (!$customerPhone) {
-                        throw ValidationException::withMessages([
-                            'phone_number' => ['Customer phone number is required for partial payments.'],
-                        ]);
-                    }
+                $isPartiallyPaid = $paidAmount > 0 && $paidAmount < $payableAmount;
 
-                    if (!$customerName) {
-                        throw ValidationException::withMessages([
-                            'customer_name' => ['Customer name is required for partial payments.'],
-                        ]);
-                    }
+                if ($isPartiallyPaid && !$supplier) {
+                    throw ValidationException::withMessages([
+                        'supplier_id' => ['Supplier is required for partial payment.'],
+                    ]);
                 }
-                // --------------------------------------------------------------
 
-                $paymentMethod = $validated['payment_method'] ?? OrderPayment::METHOD_CASH;
+                $paymentMethod = $validated['payment_method'] ?? PurchaseOrderPayment::METHOD_CASH;
 
-                if (!in_array($paymentMethod, OrderPayment::PAYMENT_METHODS, true)) {
+                if (!in_array($paymentMethod, PurchaseOrderPayment::PAYMENT_METHODS, true)) {
                     throw ValidationException::withMessages([
                         'payment_method' => ['Invalid payment method.'],
                     ]);
                 }
 
-                $point = (int) $cartItems->sum(fn ($item) => (int) ($item->point ?? 0) * (int) $item->quantity);
+                $point = (int) $cartItems->sum(
+                    fn($item) => (int) ($item->point ?? 0) * (int) $item->quantity
+                );
 
-                if ($payableAmount <= 0)
-                {
-                    $orderStatus = Order::STATUS_COMPLETED;
-                } elseif ($paidAmount >= $payableAmount) {
-                    $orderStatus = Order::STATUS_COMPLETED;
+                if ($payableAmount <= 0 || $paidAmount >= $payableAmount) {
+                    $orderStatus = PurchaseOrder::STATUS_COMPLETED;
                 } elseif ($paidAmount > 0) {
-                    $orderStatus = Order::STATUS_PARTIALLY_PAID;
+                    $orderStatus = PurchaseOrder::STATUS_PARTIALLY_PAID;
                 } else {
-                    $orderStatus = Order::STATUS_UNPAID;
+                    $orderStatus = PurchaseOrder::STATUS_UNPAID;
                 }
 
-                $order = Order::create([
-                    'reg'            => $reg,
+                $orderNumber = 'PO-' . now()->format('YmdHis') . '-' . strtoupper(Str::random(6));
+                $slug = Str::slug($orderNumber);
 
-                    'order_date'     => now()->toDateString(),
-
-                    'user_id'        => $user->id,
-                    'customer_id'    => $customer?->id,
-                    'customer_name'  => $customerName ?: $customer?->customer_name ?: 'Walk-in Customer',
-                    'customer_phone' => $customerPhone,
-
-                    'subtotal'       => $subtotal,
-                    'discount'       => $discount,
+                $order = PurchaseOrder::create([
+                    'reg' => $reg,
+                    'order_number' => $orderNumber,
+                    'slug' => $slug,
+                    'order_date' => now()->toDateString(),
+                    'user_id' => $user->id,
+                    'supplier_id' => $supplier?->id,
+                    'supplier_name' => $supplier?->name ?: $supplierName,
+                    'supplier_phone' => $supplier?->phone ?: $supplierPhone,
+                    'subtotal' => $subtotal,
+                    'discount' => $discount,
                     'vat_percentage' => $vatPercentage,
-                    'vat'            => $vat,
-                    'due_amount'     => $dueAmount,
+                    'vat' => $vat,
+                    'due_amount' => $dueAmount,
                     'payable_amount' => $payableAmount,
                     'payment_method' => $paymentMethod,
-                    'currency'       => Order::CURRENCY_BDT,
-                    'point'          => $point,
-                    'status'         => $orderStatus,
-                    'completed_at'   => $orderStatus === Order::STATUS_COMPLETED ? now() : null,
-                    'remarks'        => $validated['remarks'] ?? "Order created by user: {$user->name}",
-                    'paid_at'        => now()->toDateString(),
-                    'ip_address'     => $request->ip(),
-                    'user_agent'     => $request->userAgent(),
+                    'currency' => PurchaseOrder::CURRENCY_BDT,
+                    'point' => $point,
+                    'status' => $orderStatus,
+                    'completed_at' => $orderStatus === PurchaseOrder::STATUS_COMPLETED ? now() : null,
+                    'remarks' => $validated['remarks'] ?? "Purchase order created by user: {$user->name}",
+                    'paid_at' => $paidAmount > 0 ? now() : null,
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
                 ]);
 
                 $payment = null;
 
                 if ($paidAmount > 0) {
-                    $payment = OrderPayment::create([
-                        'order_id'       => $order->id,
-                        'user_id'        => $user->id,
-                        'customer_id'    => $customer?->id,
-                        'received_by'    => $user->id,
-                        'payment_type'   => OrderPayment::TYPE_PAYMENT,
+                    $payment = PurchaseOrderPayment::create([
+                        'order_id' => $order->id,
+                        'user_id' => $user->id,
+                        'supplier_id' => $supplier?->id,
+                        'payment_type' => PurchaseOrderPayment::TYPE_PAYMENT,
                         'payment_method' => $paymentMethod,
-                        'amount'         => $paidAmount,
-                        'currency'       => OrderPayment::CURRENCY_BDT,
-                        'paid_at'        => now(),
-                        'remarks'        => $validated['remarks'] ?? "Order payment received by user: {$user->name}",
-                        'ip_address'     => $request->ip(),
-                        'user_agent'     => $request->userAgent(),
+                        'amount' => $paidAmount,
+                        'currency' => PurchaseOrderPayment::CURRENCY_BDT,
+                        'paid_at' => now(),
+                        'received_by' => $user->id,
+                        'remarks' => $validated['remarks'] ?? "Purchase order payment received by user: {$user->name}",
+                        'ip_address' => $request->ip(),
+                        'user_agent' => $request->userAgent(),
                     ]);
                 }
 
-                $order->load([
-                    'customer',
-                    'payments',
-                ]);
+                $order->load(['supplier', 'payments']);
 
                 return [
                     'order' => $order,
@@ -724,10 +756,13 @@ class PurchaseController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Order placed successfully.',
-                'data'    => [
-                    'order'         => $result['order'],
-                    'payment'       => $result['payment'],
+                'message' => 'Purchase order placed successfully.',
+                'data' => [
+                    'order' => $result['order'],
+                    'payment' => $result['payment'],
+                    'paid_amount' => $result['paid_amount'],
+                    'due_amount' => $result['due_amount'],
+                    'received_amount' => $result['received_amount'],
                     'change_amount' => $result['change_amount'],
                 ],
             ], 201);
@@ -736,14 +771,15 @@ class PurchaseController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => collect($e->errors())->flatten()->first(),
-                'errors'  => $e->errors(),
+                'errors' => $e->errors(),
             ], 422);
+
         } catch (\Throwable $e) {
-            Log::error('Order confirmation failed', [
+            Log::error('Purchase order confirmation failed', [
                 'user_id' => $user?->id,
-                'reg'     => $reg,
+                'reg' => $reg,
                 'message' => $e->getMessage(),
-                'trace'   => $e->getTraceAsString(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([

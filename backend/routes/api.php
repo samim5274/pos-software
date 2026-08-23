@@ -163,6 +163,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/add-to-cart', [PurchaseController::class, 'adminAddToCart']);
         Route::post('/qty-update/{reg}/{product_id}', [PurchaseController::class, 'updateQty']);
         Route::post('/remove-to-cart/{cart_id}/{reg}/{product_id}', [PurchaseController::class, 'removeToCart']);
+        Route::post('/checkout/{reg}', [PurchaseController::class, 'confirmOrder']);
     });
 });
 

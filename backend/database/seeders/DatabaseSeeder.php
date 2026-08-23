@@ -28,6 +28,8 @@ class DatabaseSeeder extends Seeder
 
             ExCategorySeeder::class,
             ExSubCategorySeeder::class,
+
+            SupplyerSeeder::class,
         ]);
     }
 }
