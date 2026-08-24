@@ -49,6 +49,7 @@ return new class extends Migration
                 'pending',
                 'unpaid',
                 'partially_paid',
+                'paid',
                 'completed',
                 'returned',
             ])->default('pending')->index();

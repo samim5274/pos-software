@@ -396,17 +396,17 @@ class OrderController extends Controller
         } catch (\Throwable $e) {
             Log::error($e);
 
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ], 500);
-
             // return response()->json([
             //     'success' => false,
-            //     'message' => 'Something went wrong while fetching order details.',
+            //     'message' => $e->getMessage(),
+            //     'file' => $e->getFile(),
+            //     'line' => $e->getLine(),
             // ], 500);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong while fetching order details.',
+            ], 500);
         }
     }
 

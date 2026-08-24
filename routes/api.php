@@ -24,6 +24,7 @@ use App\Http\Controllers\Ecommerce\RatingController;
 use App\Http\Controllers\Ecommerce\SliderController;
 
 use App\Http\Controllers\Purchase\PurchaseController;
+use App\Http\Controllers\Finance\DueController;
 
 use App\Http\Controllers\Order\OrderController;
 use App\Http\Controllers\Order\CouponController;
@@ -364,6 +365,23 @@ Route::middleware('auth:sanctum')->group(function () {
 //         Route::post('/check', [CouponController::class, 'checkCoupon']);
 //     });
 // });
+
+
+
+
+
+
+// =============================
+// Due Controller
+// =============================
+Route::middleware('auth:sanctum')->group(function () {
+    Route::prefix('due')->group(function () {
+        Route::get('/', [DueController::class, 'index']);
+        Route::post('/collection', [DueController::class, 'dueCollection']);
+
+        Route::get('/{reg}', [DueController::class, 'getOrderDetails']);
+    });
+});
 
 
 
