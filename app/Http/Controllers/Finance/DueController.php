@@ -90,7 +90,7 @@ class DueController extends Controller
             }
 
             $payments = OrderPayment::with([
-                'user:id,name',
+                'user:id,name', 'receiver'
             ])
             ->where('order_id', $order->id)
             ->latest('id')
@@ -276,13 +276,14 @@ class DueController extends Controller
                 $payment = OrderPayment::create([
                     'order_id'          => $order->id,
                     'user_id'           => $user->id,
+                    'received_by'       => $user->id,
                     'customer_id'       => $order->customer_id,
                     'payment_number'    =>'PAY-' . strtoupper(Str::random(12)),
                     'receipt_no'        => 'REC-' . strtoupper(Str::random(12)),
                     'amount'            => $paymentAmount,
                     'payment_method'    => $validated['payment_method'],
                     'paid_at'           => now(),
-                    'remarks'           => $validated['remarks'] ?? null,
+                    'remarks'           => $validated['remarks'] ?? 'Order payment received by user: '. $user->name,
                     'ip_address'        => $request->ip(),
                     'user_agent'        => $request->userAgent(),
                 ]);
