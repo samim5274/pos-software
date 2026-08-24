@@ -788,7 +788,20 @@ class PurchaseController extends Controller
                         ]);
                     }
 
-                    $product->increment('stock_quantity', $quantity);
+                    $currentStock = (float) ($product->stock_quantity ?? 0);
+                    $quantity = (int) $item->quantity;
+
+                    if ($quantity < 1) {
+                        throw ValidationException::withMessages([
+                            'quantity' => ["Invalid quantity for product {$product->id}."],
+                        ]);
+                    }
+
+                    $product->update([
+                        'stock_quantity' => $currentStock + $quantity,
+                        'purchase_price' => round((float) $item->price, 2),
+                        'price' => round((float) ($item->sale_price ?? $product->price), 2),
+                    ]);
 
                     Stock::create([
                         'product_id' => $product->id,
@@ -805,10 +818,10 @@ class PurchaseController extends Controller
                     ]);
                 }
 
-                PurchaseCart::query()
-                    ->where('user_id', $user->id)
-                    ->where('reg', $reg)
-                    ->delete();
+                // PurchaseCart::query()
+                //     ->where('user_id', $user->id)
+                //     ->where('reg', $reg)
+                //     ->delete();
 
                 $order->load(['supplier', 'payments']);
 

@@ -143,16 +143,17 @@ class StockController extends Controller
         }
     }
 
-    public function store(Request $request, $id)
+    public function store(Request $request, int $id)
     {
-        $request->validate([
+        $validated = $request->validate([
             'stock' => ['required', 'numeric', 'min:1'],
+            'purchasePrice' => ['required', 'numeric', 'min:0'],
+            'salePrice' => ['required', 'numeric', 'min:0'],
         ]);
 
         try {
-            return DB::transaction(function () use ($request, $id) {
-
-                $product = Product::where('id', $id)
+            return DB::transaction(function () use ($validated, $id) {
+                $product = Product::whereKey($id)
                     ->lockForUpdate()
                     ->first();
 
@@ -163,21 +164,40 @@ class StockController extends Controller
                     ], 404);
                 }
 
-                $stockQty = (float) $request->stock;
+                $stockQty = (float) $validated['stock'];
+                $purchasePrice = round((float) $validated['purchasePrice'], 2);
+                $salePrice = round((float) $validated['salePrice'], 2);
+
+                if ($salePrice < $purchasePrice) {
+                    throw ValidationException::withMessages([
+                        'salePrice' => [
+                            'Sale price cannot be lower than purchase price.',
+                        ],
+                    ]);
+                }
 
                 do {
                     $reg = 'STK-' . strtoupper(Str::random(10));
                 } while (Stock::where('reg', $reg)->exists());
 
                 $product->increment('stock_quantity', $stockQty);
+                $product->update([
+                    'purchase_price' => $purchasePrice,
+                    'price' => $salePrice,
+                ]);
 
                 $stock = Stock::create([
-                    'reg'       => $reg,
-                    'date'      => now()->toDateString(),
-                    'product_id'=> $product->id,
-                    'stockIn'   => $stockQty,
-                    'stockOut'  => 0,
-                    'remark'    => 'Stock added by: '. auth()->user()->name,
+                    'product_id' => $product->id,
+                    'batch_no' => null,
+                    'reg' => $reg,
+                    'date' => now()->toDateString(),
+                    'purchase_price' => $purchasePrice,
+                    'sale_price' => $salePrice,
+                    'stockIn' => $stockQty,
+                    'stockOut' => 0,
+                    'expiry_date' => null,
+                    'remark' => 'Manual stock addition',
+                    'status' => 'active',
                 ]);
 
                 return response()->json([
@@ -185,22 +205,27 @@ class StockController extends Controller
                     'message' => 'Product stock added successfully.',
                     'data' => [
                         'product' => $product->fresh(),
-                        'stock'   => $stock,
+                        'stock' => $stock,
                     ],
                 ], 201);
             });
-
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
         } catch (\Throwable $e) {
-
             Log::error('Failed to add product stock.', [
                 'product_id' => $id,
-                'error'      => $e->getMessage(),
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to add product stock.',
-                'error'   => $e->getMessage(),
             ], 500);
         }
     }

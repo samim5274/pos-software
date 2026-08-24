@@ -185,6 +185,9 @@
                                     </div>
                                     <!-- Filter Dropdown & Badge -->
                                     <div class="flex items-center gap-2 w-full sm:w-1/2 justify-end">
+                                        <input type="number" min="1" v-model.number="quantity" value="1" @keydown.enter="handleSearch"
+                                        class="w-full h-8 px-2 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:border-emerald-500 dark:focus:border-orange-500 transition-colors">
+                                        
                                         <select
                                             v-model="sortBy"
                                             class="w-full h-8 px-2 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:border-emerald-500 dark:focus:border-orange-500 transition-colors"
@@ -674,6 +677,7 @@ const router = useRouter();
 
 // Filter State Variables
 const searchQuery = ref('');
+const quantity = ref(1);
 const sortBy = ref('all');
 const products = ref([]);
 
@@ -812,6 +816,7 @@ async function handleSearch() {
     
     const cartData = {
         product: searchQuery.value,
+        quantity: Number(quantity.value) || 1,
     };
 
     // console.log('Searching:', cartData)
@@ -827,6 +832,7 @@ async function handleSearch() {
                 product_id: product.id,
             });
             searchQuery.value = "";
+            quantity.value = "1";
             await getCartItems();
         } else {
             errorMsg.value = res.data?.message || "Something went wrong";

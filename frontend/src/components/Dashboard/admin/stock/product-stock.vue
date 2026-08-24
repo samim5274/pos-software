@@ -107,17 +107,19 @@
 
                                             <!-- Price -->
                                             <td class="p-3 font-semibold text-slate-900 dark:text-white">
-                                            ৳{{ product.price }}
+                                            ৳{{ product.purchase_price }}
                                             </td>
 
                                             <!-- Stock Quantity -->
-                                            <td class="p-3 text-right">
-                                            <span 
-                                                :class="product.stock_quantity <= product.min_stock ? 'bg-red-50 text-red-600 dark:bg-red-950/40' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40'"
-                                                class="px-2 py-0.5 rounded-full font-medium text-[11px]"
-                                            >
-                                                {{ product.stock_quantity }} pcs
-                                            </span>
+                                            <td class="p-3 text-right whitespace-nowrap">
+                                                <span
+                                                    :class="product.stock_quantity <= product.min_stock
+                                                        ? 'bg-red-50 text-red-600 dark:bg-red-950/40'
+                                                        : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40'"
+                                                    class="inline-flex items-center whitespace-nowrap shrink-0 px-2 py-0.5 rounded-full font-medium text-[11px]"
+                                                >
+                                                    {{ Number(product.stock_quantity) }} pcs
+                                                </span>
                                             </td>
 
                                             <!-- Action Button (+) -->
@@ -181,19 +183,16 @@
                     @click.stop
                     class="relative w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden"
                 >
-
                     <!-- Header -->
                     <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                                 <i class="fa-solid fa-boxes-stacked"></i>
                             </div>
-
                             <div>
                                 <h3 class="text-base font-bold text-slate-900 dark:text-white">
                                     Add Stock
                                 </h3>
-
                                 <p class="text-xs text-slate-500 dark:text-slate-400">
                                     Add stock for this product
                                 </p>
@@ -211,40 +210,90 @@
 
                     <!-- Body -->
                     <div class="p-5 space-y-5">
-
-                        <!-- Product Name -->
+                        <!-- Product -->
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                                 Product
                             </label>
-
                             <div class="px-3.5 py-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80">
                                 <p class="text-sm font-semibold text-slate-900 dark:text-white">
                                     {{ selectedStockProduct?.name }}
                                 </p>
+                                <p
+                                    v-if="selectedStockProduct?.stock_quantity !== undefined"
+                                    class="text-xs text-slate-500 dark:text-slate-400 mt-1"
+                                >
+                                    Current stock:
+                                    <span class="font-semibold">
+                                        {{ selectedStockProduct.stock_quantity }}
+                                    </span>
+                                </p>
                             </div>
                         </div>
 
-                        <!-- Stock -->
+                        <!-- Purchase Price -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                                Purchase Price <span class="text-rose-500">*</span>
+                            </label>
+                            <input
+                                v-model="purchasePrice"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="Enter purchase price"
+                                class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 dark:border-slate-700/80 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:focus:border-indigo-500 dark:focus:bg-slate-800"
+                                :class="{ '!border-rose-500 focus:!ring-rose-500/10': purchasePriceError }"
+                                @keyup.enter="saveProductStock"
+                            />
+                            <p
+                                v-if="purchasePriceError"
+                                class="text-xs text-rose-500 mt-1.5 flex items-center gap-1"
+                            >
+                                <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                                {{ purchasePriceError }}
+                            </p>
+                        </div>
+
+                        <!-- Sale Price -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                                Sale Price <span class="text-rose-500">*</span>
+                            </label>
+                            <input
+                                v-model="salePrice"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="Enter sale price"
+                                class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 dark:border-slate-700/80 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:focus:border-indigo-500 dark:focus:bg-slate-800"
+                                :class="{ '!border-rose-500 focus:!ring-rose-500/10': salePriceError }"
+                                @keyup.enter="saveProductStock"
+                            />
+                            <p
+                                v-if="salePriceError"
+                                class="text-xs text-rose-500 mt-1.5 flex items-center gap-1"
+                            >
+                                <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                                {{ salePriceError }}
+                            </p>
+                        </div>
+
+                        <!-- Stock Quantity -->
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                                 Stock Quantity <span class="text-rose-500">*</span>
                             </label>
-
                             <input
                                 v-model="productStock"
                                 type="number"
                                 min="1"
                                 step="1"
                                 placeholder="Enter stock quantity"
-                                autofocus
                                 class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 dark:border-slate-700/80 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:focus:border-indigo-500 dark:focus:bg-slate-800"
-                                :class="{
-                                    '!border-rose-500 focus:!ring-rose-500/10': stockError
-                                }"
+                                :class="{ '!border-rose-500 focus:!ring-rose-500/10': stockError }"
                                 @keyup.enter="saveProductStock"
                             />
-
                             <p
                                 v-if="stockError"
                                 class="text-xs text-rose-500 mt-1.5 flex items-center gap-1"
@@ -253,31 +302,39 @@
                                 {{ stockError }}
                             </p>
                         </div>
-
                     </div>
 
                     <!-- Footer -->
                     <div class="px-5 py-4 bg-slate-50/80 dark:bg-slate-800/40 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-end gap-3">
+                        
+                        <button
+                            type="button"
+                            @click="saveProductStock"
+                            :disabled="isSavingStock"
+                            class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-sm transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            <i
+                                v-if="isSavingStock"
+                                class="fa-solid fa-spinner fa-spin text-xs"
+                            ></i>
+                            <i
+                                v-else
+                                class="fa-solid fa-plus text-xs"
+                            ></i>
+                            <span>
+                                {{ isSavingStock ? 'Adding...' : 'Add Stock' }}
+                            </span>
+                        </button>
 
                         <button
                             type="button"
                             @click="closeProductStockModal"
-                            class="px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 border border-slate-200/80 dark:text-slate-300 dark:hover:text-white dark:bg-slate-800 dark:hover:bg-slate-700/80 dark:border-slate-700/80 rounded-xl transition-all active:scale-95"
+                            :disabled="isSavingStock"
+                            class="px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 border border-slate-200/80 dark:text-slate-300 dark:hover:text-white dark:bg-slate-800 dark:hover:bg-slate-700/80 dark:border-slate-700/80 rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Cancel
                         </button>
-
-                        <button
-                            type="button"
-                            @click="saveProductStock"
-                            class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-sm transition-all active:scale-95"
-                        >
-                            <i class="fa-solid fa-plus text-xs"></i>
-                            <span>Add Stock</span>
-                        </button>
-
                     </div>
-
                 </div>
             </div>
         </Transition>
@@ -323,17 +380,29 @@ const products = ref([]);
 // fetch all products
 async function fetchProducts() {
     loading.value = true;
-    errorMsg.value = '';
+    errorMsg.value = "";
+
     try {
-        const res = await api.get('/products');
-        if (res.data?.success) {
-            products.value = res.data.data;
-        } else {
-            errorMsg.value = res.data?.message || "Failed to fetch products";
+        const res = await api.get("/products");
+
+        if (!res.data?.success) {
+            errorMsg.value = res.data?.message || "Failed to fetch products.";
+            return;
         }
+
+        products.value = (res.data.data || []).map(product => ({
+            ...product,
+            stock_quantity: Number(product.stock_quantity ?? 0),
+            min_stock: Number(product.min_stock ?? 0),
+            purchase_price: Number(product.purchase_price ?? 0),
+            price: Number(product.price ?? 0),
+        }));
     } catch (err) {
-        console.error(err);
-        errorMsg.value = err.response?.data?.message || err.message || "Something went wrong";
+        console.error("Failed to fetch products:", err);
+
+        errorMsg.value =
+            err.response?.data?.message ||
+            "Failed to fetch products.";
     } finally {
         loading.value = false;
     }
@@ -368,46 +437,111 @@ const filteredProducts = computed(() => {
 
 
 
-
-
 const isProductStockModalOpen = ref(false);
 const selectedStockProduct = ref(null);
+
 const productStock = ref("");
+const purchasePrice = ref("");
+const salePrice = ref("");
+
 const stockError = ref("");
+const purchasePriceError = ref("");
+const salePriceError = ref("");
+
+const isSavingStock = ref(false);
 
 function openProductStock(product) {
     selectedStockProduct.value = product;
     productStock.value = "";
+    purchasePrice.value = product.purchase_price ?? "";
+    salePrice.value = product.price ?? "";
+
     stockError.value = "";
+    purchasePriceError.value = "";
+    salePriceError.value = "";
 
     isProductStockModalOpen.value = true;
 }
 
 function closeProductStockModal() {
+    if (isSavingStock.value) return;
+
     isProductStockModalOpen.value = false;
     selectedStockProduct.value = null;
     productStock.value = "";
+    purchasePrice.value = "";
+    salePrice.value = "";
     stockError.value = "";
+    purchasePriceError.value = "";
+    salePriceError.value = "";
+}
+
+function validateProductStock() {
+    let valid = true;
+
+    stockError.value = "";
+    purchasePriceError.value = "";
+    salePriceError.value = "";
+
+    const stock = Number(productStock.value);
+    const purchase = Number(purchasePrice.value);
+    const sale = Number(salePrice.value);
+
+    if (
+        productStock.value === "" ||
+        !Number.isInteger(stock) ||
+        stock <= 0
+    ) {
+        stockError.value = "Please enter a valid stock quantity.";
+        valid = false;
+    }
+
+    if (
+        purchasePrice.value === "" ||
+        !Number.isFinite(purchase) ||
+        purchase < 0
+    ) {
+        purchasePriceError.value = "Please enter a valid purchase price.";
+        valid = false;
+    }
+
+    if (
+        salePrice.value === "" ||
+        !Number.isFinite(sale) ||
+        sale < 0
+    ) {
+        salePriceError.value = "Please enter a valid sale price.";
+        valid = false;
+    }
+
+    if (valid && sale < purchase) {
+        salePriceError.value =
+            "Sale price cannot be lower than purchase price.";
+        valid = false;
+    }
+
+    return valid;
 }
 
 async function saveProductStock() {
-    if (!selectedStockProduct.value?.id) {
+    const product = selectedStockProduct.value;
+
+    if (!product?.id) {
         stockError.value = "Product not found.";
         return;
     }
 
-    if (!productStock.value || Number(productStock.value) <= 0) {
-        stockError.value = "Please enter a valid stock quantity.";
-        return;
-    }
+    if (isSavingStock.value || !validateProductStock()) return;
 
     try {
-        stockError.value = "";
+        isSavingStock.value = true;
 
-        const productId = selectedStockProduct.value.id;
+        const productId = product.id;
 
         const payload = {
             stock: Number(productStock.value),
+            purchasePrice: Number(purchasePrice.value),
+            salePrice: Number(salePrice.value),
         };
 
         const response = await api.post(
@@ -416,39 +550,66 @@ async function saveProductStock() {
         );
 
         if (response.data?.success) {
-            closeProductStockModal();
-
+            const updatedProduct = response.data?.data?.product;
             const index = products.value.findIndex(
-                product => product.id === productId
+                item => item.id === productId
             );
 
-            if (index !== -1) {
-                products.value[index].stock_quantity =
-                    response.data.data.product.stock_quantity;
+            if (index !== -1 && updatedProduct) {
+                products.value[index] = {
+                    ...products.value[index],
+                    ...updatedProduct,
+                };
             }
 
-            // Optional success message
-            successMsg.value = response.data.message;
-        }
+            successMsg.value =
+                response.data.message ||
+                "Product stock added successfully.";
 
+            // Success holei modal close
+            isProductStockModalOpen.value = false;
+            selectedStockProduct.value = null;
+            productStock.value = "";
+            purchasePrice.value = "";
+            salePrice.value = "";
+            stockError.value = "";
+            purchasePriceError.value = "";
+            salePriceError.value = "";
+        }
     } catch (error) {
         console.error("Failed to add product stock:", error);
 
         if (error.response?.status === 422) {
-            const errors = error.response.data?.errors;
+            const errors = error.response.data?.errors || {};
 
-            stockError.value =
-                errors?.stock?.[0] ||
-                "Please enter a valid stock quantity.";
+            stockError.value = errors.stock?.[0] || "";
+            purchasePriceError.value =
+                errors.purchasePrice?.[0] ||
+                errors.purchase_price?.[0] ||
+                "";
+            salePriceError.value =
+                errors.salePrice?.[0] ||
+                errors.sale_price?.[0] ||
+                "";
+
+            if (
+                !stockError.value &&
+                !purchasePriceError.value &&
+                !salePriceError.value
+            ) {
+                stockError.value =
+                    error.response.data?.message ||
+                    "Please check the entered values.";
+            }
         } else {
             stockError.value =
                 error.response?.data?.message ||
                 "Failed to add product stock.";
         }
+    } finally {
+        isSavingStock.value = false;
     }
 }
-
-
 
 
 
