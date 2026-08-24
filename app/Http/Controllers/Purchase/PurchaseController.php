@@ -872,4 +872,92 @@ class PurchaseController extends Controller
             ], 500);
         }
     }
+
+    public function purchaseOrder(Request $request)
+    {
+        try {
+            $perPage = min((int) $request->input('per_page', 20), 100);
+
+            $query = PurchaseOrder::query()
+                ->with([
+                    'user:id,name',
+                    'supplier:id,name',
+                ])
+                ->when($request->filled('search'), function ($query) use ($request) {
+
+                    $search = trim($request->input('search'));
+
+                    $query->where(function ($q) use ($search) {
+
+                        // Purchase Order fields
+                        $q->where('reg', 'LIKE', "%{$search}%")
+                            ->orWhere('order_number', 'LIKE', "%{$search}%")
+                            ->orWhere('slug', 'LIKE', "%{$search}%")
+                            ->orWhere('supplier_name', 'LIKE', "%{$search}%")
+                            ->orWhere('supplier_phone', 'LIKE', "%{$search}%")
+                            ->orWhere('payment_method', 'LIKE', "%{$search}%")
+                            ->orWhere('currency', 'LIKE', "%{$search}%")
+                            ->orWhere('status', 'LIKE', "%{$search}%")
+                            ->orWhere('remarks', 'LIKE', "%{$search}%")
+
+                            // User relation
+                            ->orWhereHas('user', function ($userQuery) use ($search) {
+                                $userQuery->where('name', 'LIKE', "%{$search}%");
+                            })
+
+                            // Supplier relation
+                            ->orWhereHas('supplier', function ($supplierQuery) use ($search) {
+                                $supplierQuery->where('name', 'LIKE', "%{$search}%");
+                            });
+                    });
+                })
+
+                // Status filter
+                ->when($request->filled('status'), function ($query) use ($request) {
+                    $query->where('status', $request->input('status'));
+                })
+
+                // Supplier filter
+                ->when($request->filled('supplier_id'), function ($query) use ($request) {
+                    $query->where('supplier_id', $request->input('supplier_id'));
+                })
+
+                // User filter
+                ->when($request->filled('user_id'), function ($query) use ($request) {
+                    $query->where('user_id', $request->input('user_id'));
+                })
+
+                ->latest('id');
+
+            $orders = $query->paginate($perPage);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Purchase orders fetched successfully.',
+                'data' => $orders->items(),
+                'pagination' => [
+                    'current_page' => $orders->currentPage(),
+                    'per_page' => $orders->perPage(),
+                    'total' => $orders->total(),
+                    'last_page' => $orders->lastPage(),
+                    'from' => $orders->firstItem(),
+                    'to' => $orders->lastItem(),
+                ],
+            ], 200);
+
+        } catch (\Throwable $e) {
+            Log::error('Purchase order fetch failed.', [
+                'user_id' => Auth::id(),
+                'request' => $request->all(),
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to fetch purchase orders.',
+            ], 500);
+        }
+    }
 }

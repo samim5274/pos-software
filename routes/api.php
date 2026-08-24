@@ -158,6 +158,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::prefix('purchase')->group(function () {
         Route::get('/', [PurchaseController::class, 'index']);
+        Route::get('/orders', [PurchaseController::class, 'purchaseOrder']);
         Route::get('/add-to-cart', [PurchaseController::class, 'addToCard']);
         Route::post('/add-to-cart-search', [PurchaseController::class, 'adminAddToCartSearch']);
         Route::get('/{reg}', [PurchaseController::class, 'getCartItem']);
