@@ -55,6 +55,7 @@ class OrderPayment extends Model
         'payment_type',
         'payment_method',
         'amount',
+        'discount',
         'currency',
 
         'paid_at',

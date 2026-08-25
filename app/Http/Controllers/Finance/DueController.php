@@ -170,6 +170,7 @@ class DueController extends Controller
                 $user,
                 $request
             ) {
+
                 /*
                 |--------------------------------------------------------------------------
                 | Lock Order
@@ -192,10 +193,21 @@ class DueController extends Controller
                 |--------------------------------------------------------------------------
                 */
 
-                $currentDue = round(
-                    (float) $order->due_amount,
-                    2
-                );
+                $currentDue = round((float) $order->due_amount, 2);
+
+                if ($currentDue <= 0) {
+                    throw ValidationException::withMessages([
+                        'amount' => [
+                            'This order has no due amount.'
+                        ],
+                    ]);
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Payment + Discount
+                |--------------------------------------------------------------------------
+                */
 
                 $paymentAmount = round(
                     (float) $validated['amount'],
@@ -206,14 +218,6 @@ class DueController extends Controller
                     (float) ($validated['discount'] ?? 0),
                     2
                 );
-
-                if ($currentDue <= 0) {
-                    throw ValidationException::withMessages([
-                        'amount' => [
-                            'This order has no due amount.'
-                        ],
-                    ]);
-                }
 
                 /*
                 |--------------------------------------------------------------------------
@@ -231,11 +235,11 @@ class DueController extends Controller
 
                 /*
                 |--------------------------------------------------------------------------
-                | Remaining Amount After Discount
+                | Amount After Discount
                 |--------------------------------------------------------------------------
                 */
 
-                $remainingAfterDiscount = round(
+                $dueAfterDiscount = round(
                     $currentDue - $discount,
                     2
                 );
@@ -246,7 +250,7 @@ class DueController extends Controller
                 |--------------------------------------------------------------------------
                 */
 
-                if ($paymentAmount > $remainingAfterDiscount) {
+                if ($paymentAmount > $dueAfterDiscount) {
                     throw ValidationException::withMessages([
                         'amount' => [
                             'Payment cannot exceed remaining due after discount.'
@@ -261,11 +265,13 @@ class DueController extends Controller
                 */
 
                 $remainingDue = round(
-                    $remainingAfterDiscount - $paymentAmount,
+                    $dueAfterDiscount - $paymentAmount,
                     2
                 );
 
-                $remainingDue = max(0, $remainingDue);
+                if ($remainingDue < 0) {
+                    $remainingDue = 0;
+                }
 
                 /*
                 |--------------------------------------------------------------------------
@@ -274,33 +280,47 @@ class DueController extends Controller
                 */
 
                 $payment = OrderPayment::create([
-                    'order_id'          => $order->id,
-                    'user_id'           => $user->id,
-                    'received_by'       => $user->id,
-                    'customer_id'       => $order->customer_id,
-                    'payment_number'    =>'PAY-' . strtoupper(Str::random(12)),
-                    'receipt_no'        => 'REC-' . strtoupper(Str::random(12)),
-                    'amount'            => $paymentAmount,
-                    'payment_method'    => $validated['payment_method'],
-                    'paid_at'           => now(),
-                    'remarks'           => $validated['remarks'] ?? 'Due Collection',
-                    'ip_address'        => $request->ip(),
-                    'user_agent'        => $request->userAgent(),
-                ]);
+                    'order_id'       => $order->id,
+                    'user_id'        => $user->id,
+                    'received_by'    => $user->id,
+                    'customer_id'    => $order->customer_id,
 
+                    'payment_number' => 'PAY-' . strtoupper(Str::random(12)),
+                    'receipt_no'     => 'REC-' . strtoupper(Str::random(12)),
+
+                    'amount'         => $paymentAmount,
+                    'discount'       => $discount,
+
+                    'payment_method' => $validated['payment_method'],
+                    'paid_at'        => now(),
+
+                    'remarks'        => $validated['remarks'] ?? 'Due Collection',
+
+                    'ip_address'     => $request->ip(),
+                    'user_agent'     => $request->userAgent(),
+                ]);
 
                 /*
                 |--------------------------------------------------------------------------
                 | Update Order
                 |--------------------------------------------------------------------------
                 */
+
                 $order->due_amount = $remainingDue;
 
-                if ($remainingDue <= 0) {
+                if ($remainingDue == 0.00) {
+
                     $order->due_amount = 0;
-                    $order->paid_at = $order->paid_at ?? now();
+
+                    // Only set paid_at when becoming fully paid
+                    if (!$order->paid_at) {
+                        $order->paid_at = now();
+                    }
+
                     $order->status = 'paid';
+
                 } else {
+
                     $order->status = 'partially_paid';
                 }
 
@@ -308,15 +328,24 @@ class DueController extends Controller
 
                 /*
                 |--------------------------------------------------------------------------
-                | Total Paid
+                | Payment Summary
                 |--------------------------------------------------------------------------
                 */
 
                 $totalPaid = round(
-                    (float) OrderPayment::where(
-                        'order_id',
-                        $order->id
-                    )->sum('amount'),
+                    (float) OrderPayment::where('order_id', $order->id)
+                        ->sum('amount'),
+                    2
+                );
+
+                $totalDiscount = round(
+                    (float) OrderPayment::where('order_id', $order->id)
+                        ->sum('discount'),
+                    2
+                );
+
+                $totalSettled = round(
+                    $totalPaid + $totalDiscount,
                     2
                 );
 
@@ -324,11 +353,13 @@ class DueController extends Controller
                     'order' => $order->fresh(),
                     'payment' => $payment->load('user'),
                     'total_paid' => $totalPaid,
+                    'total_discount' => $totalDiscount,
+                    'total_settled' => $totalSettled,
                     'current_due' => $currentDue,
                     'payment_amount' => $paymentAmount,
                     'discount' => $discount,
                     'remaining_due' => $remainingDue,
-                    'is_fully_paid' => $remainingDue <= 0,
+                    'is_fully_paid' => $remainingDue === 0.00,
                 ];
             });
 
@@ -343,6 +374,7 @@ class DueController extends Controller
             ], 200);
 
         } catch (ValidationException $e) {
+
             throw $e;
 
         } catch (\Throwable $e) {
@@ -351,12 +383,14 @@ class DueController extends Controller
                 'reg' => $request->reg,
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
             ]);
 
             return response()->json([
                 'success' => false,
-                // 'message' => $e->getMessage(),
-                'message' => "Something is wrong.",
+                'message' => $e->getMessage(),
+                // 'message' => 'Something went wrong while collecting payment.',
             ], 500);
         }
     }
