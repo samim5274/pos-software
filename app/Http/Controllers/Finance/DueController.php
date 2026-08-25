@@ -283,7 +283,7 @@ class DueController extends Controller
                     'amount'            => $paymentAmount,
                     'payment_method'    => $validated['payment_method'],
                     'paid_at'           => now(),
-                    'remarks'           => $validated['remarks'] ?? 'Order payment received by user: '. $user->name,
+                    'remarks'           => $validated['remarks'] ?? 'Due Collection',
                     'ip_address'        => $request->ip(),
                     'user_agent'        => $request->userAgent(),
                 ]);

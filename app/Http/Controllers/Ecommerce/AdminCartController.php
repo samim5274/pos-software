@@ -1140,7 +1140,7 @@ class AdminCartController extends Controller
                         'amount'         => $paidAmount,
                         'currency'       => OrderPayment::CURRENCY_BDT,
                         'paid_at'        => now(),
-                        'remarks'        => $validated['remarks'] ?? "Order payment received by user: {$user->name}",
+                        'remarks'        => $validated['remarks'] ?? "Order payment",
                         'ip_address'     => $request->ip(),
                         'user_agent'     => $request->userAgent(),
                     ]);
