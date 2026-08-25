@@ -960,4 +960,54 @@ class PurchaseController extends Controller
             ], 500);
         }
     }
+
+    public function getPurchaseDetails($reg)
+    {
+        try {
+            $order = PurchaseOrder::with([
+                'user:id,name,user_id',
+                'supplier',
+                'items.product:id,name',
+                'items.product.images:id,product_id,image_path,is_primary,sort_order',
+                'payments.user:id,name,user_id',
+                'payments.supplier',
+            ])
+            ->where('reg', $reg)
+            ->first();
+
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Purchase order not found.',
+                    'data' => null,
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Purchase order fetched successfully.',
+                'data' => [
+                    'order' => $order,
+                    'payments' => $order->payments,
+                    'cartItems' => $order->items,
+                    'user' => auth()->user(),
+                ],
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            Log::error('Purchase order details fetch failed', [
+                'reg' => $reg,
+                'user_id' => auth()->id(),
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong while fetching purchase order details.',
+            ], 500);
+        }
+    }
 }

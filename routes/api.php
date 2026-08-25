@@ -167,6 +167,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::put('/cart/{id}', [PurchaseController::class, 'updateCartItem']);
         Route::post('/remove-to-cart/{cart_id}/{reg}/{product_id}', [PurchaseController::class, 'removeToCart']);
         Route::post('/checkout/{reg}', [PurchaseController::class, 'confirmOrder']);
+        
+        Route::get('/order/details/{reg}', [PurchaseController::class, 'getPurchaseDetails']);
     });
 });
 
