@@ -169,6 +169,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/checkout/{reg}', [PurchaseController::class, 'confirmOrder']);
         
         Route::get('/order/details/{reg}', [PurchaseController::class, 'getPurchaseDetails']);
+        Route::post('/due/collection', [PurchaseController::class, 'dueCollection']);
     });
 });
 

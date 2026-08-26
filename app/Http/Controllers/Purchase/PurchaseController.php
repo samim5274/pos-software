@@ -1010,4 +1010,258 @@ class PurchaseController extends Controller
             ], 500);
         }
     }
+
+    public function dueCollection(Request $request)
+    {
+        $validated = $request->validate([
+            'reg' => ['required', 'string'],
+            'amount' => ['required', 'numeric', 'gt:0'],
+            'discount' => ['nullable', 'numeric', 'gte:0'],
+            'payment_method' => [
+                'required',
+                'string',
+                'in:cash,bkash,nagad,card,bank'
+            ],
+            'remarks' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 401);
+        }
+
+        try {
+            $result = DB::transaction(function () use (
+                $validated,
+                $user,
+                $request
+            ) {
+
+                /*
+                |--------------------------------------------------------------------------
+                | Lock Order
+                |--------------------------------------------------------------------------
+                */
+
+                $order = PurchaseOrder::where('reg', $validated['reg'])
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$order) {
+                    throw ValidationException::withMessages([
+                        'reg' => ['Order not found.'],
+                    ]);
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Current Due
+                |--------------------------------------------------------------------------
+                */
+
+                $currentDue = round((float) $order->due_amount, 2);
+
+                if ($currentDue <= 0) {
+                    throw ValidationException::withMessages([
+                        'amount' => [
+                            'This order has no due amount.'
+                        ],
+                    ]);
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Payment + Discount
+                |--------------------------------------------------------------------------
+                */
+
+                $paymentAmount = round(
+                    (float) $validated['amount'],
+                    2
+                );
+
+                $discount = round(
+                    (float) ($validated['discount'] ?? 0),
+                    2
+                );
+
+                /*
+                |--------------------------------------------------------------------------
+                | Validate Discount
+                |--------------------------------------------------------------------------
+                */
+
+                if ($discount > $currentDue) {
+                    throw ValidationException::withMessages([
+                        'discount' => [
+                            'Discount cannot exceed current due amount.'
+                        ],
+                    ]);
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Amount After Discount
+                |--------------------------------------------------------------------------
+                */
+
+                $dueAfterDiscount = round(
+                    $currentDue - $discount,
+                    2
+                );
+
+                /*
+                |--------------------------------------------------------------------------
+                | Validate Payment
+                |--------------------------------------------------------------------------
+                */
+
+                if ($paymentAmount > $dueAfterDiscount) {
+                    throw ValidationException::withMessages([
+                        'amount' => [
+                            'Payment cannot exceed remaining due after discount.'
+                        ],
+                    ]);
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Calculate Remaining Due
+                |--------------------------------------------------------------------------
+                */
+
+                $remainingDue = round(
+                    $dueAfterDiscount - $paymentAmount,
+                    2
+                );
+
+                if ($remainingDue < 0) {
+                    $remainingDue = 0;
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Create Payment
+                |--------------------------------------------------------------------------
+                */
+
+                $payment = PurchaseOrderPayment::create([
+                    'order_id'       => $order->id,
+                    'user_id'        => $user->id,
+                    'received_by'    => $user->id,
+                    'customer_id'    => $order->customer_id,
+
+                    'payment_number' => 'PAY-' . strtoupper(Str::random(12)),
+                    'receipt_no'     => 'REC-' . strtoupper(Str::random(12)),
+
+                    'amount'         => $paymentAmount,
+                    'discount'       => $discount,
+
+                    'payment_method' => $validated['payment_method'],
+                    'paid_at'        => now(),
+
+                    'remarks'        => $validated['remarks'] ?? 'Due Collection',
+
+                    'ip_address'     => $request->ip(),
+                    'user_agent'     => $request->userAgent(),
+                ]);
+
+                /*
+                |--------------------------------------------------------------------------
+                | Update Order
+                |--------------------------------------------------------------------------
+                */
+
+                $order->due_amount = $remainingDue;
+
+                if ($remainingDue == 0.00) {
+
+                    $order->due_amount = 0;
+
+                    // Only set paid_at when becoming fully paid
+                    if (!$order->paid_at) {
+                        $order->paid_at = now();
+                    }
+
+                    $order->status = 'paid';
+
+                } else {
+
+                    $order->status = 'partially_paid';
+                }
+
+                $order->save();
+
+                /*
+                |--------------------------------------------------------------------------
+                | Payment Summary
+                |--------------------------------------------------------------------------
+                */
+
+                $totalPaid = round(
+                    (float) PurchaseOrderPayment::where('order_id', $order->id)
+                        ->sum('amount'),
+                    2
+                );
+
+                $totalDiscount = round(
+                    (float) PurchaseOrderPayment::where('order_id', $order->id)
+                        ->sum('discount'),
+                    2
+                );
+
+                $totalSettled = round(
+                    $totalPaid + $totalDiscount,
+                    2
+                );
+
+                return [
+                    'order' => $order->fresh(),
+                    'payment' => $payment->load('user'),
+                    'total_paid' => $totalPaid,
+                    'total_discount' => $totalDiscount,
+                    'total_settled' => $totalSettled,
+                    'current_due' => $currentDue,
+                    'payment_amount' => $paymentAmount,
+                    'discount' => $discount,
+                    'remaining_due' => $remainingDue,
+                    'is_fully_paid' => $remainingDue === 0.00,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+
+                'message' => $result['is_fully_paid']
+                    ? 'Payment collected successfully. Order is fully paid.'
+                    : 'Due payment collected successfully.',
+
+                'data' => $result,
+            ], 200);
+
+        } catch (ValidationException $e) {
+
+            throw $e;
+
+        } catch (\Throwable $e) {
+
+            Log::error('Due collection failed', [
+                'reg' => $request->reg,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                // 'message' => 'Something went wrong while collecting payment.',
+            ], 500);
+        }
+    }
 }

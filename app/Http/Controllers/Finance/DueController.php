@@ -389,8 +389,8 @@ class DueController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
-                // 'message' => 'Something went wrong while collecting payment.',
+                // 'message' => $e->getMessage(),
+                'message' => 'Something went wrong while collecting payment.',
             ], 500);
         }
     }

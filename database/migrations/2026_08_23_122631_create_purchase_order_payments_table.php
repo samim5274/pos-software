@@ -37,6 +37,7 @@ return new class extends Migration
             ])->default('cash')->index();
 
             $table->decimal('amount',12,2)->default(0);
+            $table->decimal('discount',12,2)->default(0);
             $table->char('currency',3)->default('BDT');
 
             $table->timestamp('paid_at')->nullable();
