@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
 use Illuminate\Http\JsonResponse;
 
@@ -1441,14 +1442,11 @@ class AdminCartController extends Controller
                         ]);
                     }
 
-                    $availableQty =
-                        (int) $stock->stockIn -
-                        (int) $stock->stockOut;
+                    $quantity = (int) $cartItem->quantity;
 
-                    if (
-                        (int) $cartItem->quantity >
-                        $availableQty
-                    ) {
+                    $availableQty = (int) $stock->stockIn - (int) $stock->stockOut;
+
+                    if ( (int) $cartItem->quantity > $availableQty ) {
                         throw ValidationException::withMessages([
                             'cart' => [
                                 "Insufficient stock for product ID {$cartItem->product_id}."
@@ -1456,10 +1454,33 @@ class AdminCartController extends Controller
                         ]);
                     }
 
-                    $stock->increment(
-                        'stockOut',
-                        (int) $cartItem->quantity
-                    );
+                    // Lock product
+                    $product = Product::query()
+                        ->whereKey($cartItem->product_id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (!$product) {
+                        throw ValidationException::withMessages([
+                            'cart' => [
+                                "Product not found for product ID {$cartItem->product_id}."
+                            ],
+                        ]);
+                    }
+
+                    if ((int) $product->stock_quantity < $quantity) {
+                        throw ValidationException::withMessages([
+                            'cart' => [
+                                "Insufficient product stock for product ID {$cartItem->product_id}."
+                            ],
+                        ]);
+                    }
+
+                    $stock->increment( 'stockOut', (int) $cartItem->quantity);
+
+                    $product->decrement('stock_quantity', $quantity);
+
+                    Cache::forget('public_products');
                 }
 
                 /*
