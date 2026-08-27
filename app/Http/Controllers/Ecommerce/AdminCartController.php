@@ -24,10 +24,18 @@ use App\Services\RegGenerator;
 use App\Http\Requests\CheckOutRequest;
 use App\Mail\OrderMail;
 use App\Models\OrderPayment;
+use App\Services\PointService;
 
 
 class AdminCartController extends Controller
 {
+    protected $pointService;
+
+    public function __construct(PointService $pointService)
+    {
+        $this->pointService = $pointService;
+    }
+
     public function index()
     {
         $userId = Auth::id();
@@ -985,8 +993,8 @@ class AdminCartController extends Controller
     public function checkOut(CheckOutRequest $request, string $reg)
     {
         $validated = $request->validated();
-
         $user = auth()->user();
+
         if (!$user) {
             return response()->json([
                 'success' => false,
@@ -995,8 +1003,12 @@ class AdminCartController extends Controller
         }
 
         try {
-            $result = DB::transaction(function () use ($validated, $user, $reg, $request) {
-
+            $result = DB::transaction(function () use (
+                $validated,
+                $user,
+                $reg,
+                $request
+            ) {
                 $cartItems = Cart::query()
                     ->where('reg', $reg)
                     ->where('user_id', $user->id)
@@ -1005,12 +1017,25 @@ class AdminCartController extends Controller
 
                 if ($cartItems->isEmpty()) {
                     throw ValidationException::withMessages([
-                        'cart' => ['Cart is empty or checkout has already been completed.'],
+                        'cart' => [
+                            'Cart is empty or checkout has already been completed.'
+                        ],
                     ]);
                 }
 
-                $customerPhone = isset($validated['phone_number']) ? trim($validated['phone_number']) : null;
-                $customerName  = isset($validated['customer_name']) ? trim($validated['customer_name']) : null;
+                /*
+                |--------------------------------------------------------------------------
+                | Customer
+                |--------------------------------------------------------------------------
+                */
+
+                $customerPhone = isset($validated['phone_number'])
+                    ? trim($validated['phone_number'])
+                    : null;
+
+                $customerName = isset($validated['customer_name'])
+                    ? trim($validated['customer_name'])
+                    : null;
 
                 $customer = null;
 
@@ -1022,75 +1047,251 @@ class AdminCartController extends Controller
 
                     if (!$customer) {
                         $customer = Customer::create([
-                            'phone'        => $customerPhone,
+                            'phone' => $customerPhone,
                             'customer_name' => $customerName ?: 'Walk-in Customer',
                         ]);
-                    } elseif ( $customerName && blank($customer->customer_name) ) {
+                    } elseif (
+                        $customerName &&
+                        blank($customer->customer_name)
+                    ) {
                         $customer->update([
                             'customer_name' => $customerName,
                         ]);
                     }
                 }
 
-                $subtotal = round($cartItems->sum(fn ($item) => (float) $item->price * (int) $item->quantity), 2);
+                /*
+                |--------------------------------------------------------------------------
+                | Payment Method
+                |--------------------------------------------------------------------------
+                */
 
-                $cartDiscount = round($cartItems->sum(fn ($item) => (float) ($item->discount ?? 0) * (int) $item->quantity), 2);
+                $paymentMethod = $validated['payment_method']
+                    ?? OrderPayment::METHOD_CASH;
 
-                $manualDiscount = round(max(0, (float) ($validated['discount'] ?? 0)), 2);
-
-                $discount = round(min($subtotal, $cartDiscount + $manualDiscount), 2);
-
-                $discountedSubtotal = round(max(0, $subtotal - $discount), 2);
-
-                // ---- Percentage-based VAT ----
-                $vatPercentage = round(min(100, max(0, (float) ($validated['vat'] ?? 0))), 2);
-                $vat = round(($discountedSubtotal * $vatPercentage) / 100, 2);
-                // -------------------------------
-
-                $payableAmount = round(max(0, ($discountedSubtotal + $vat)), 2);
-
-                $receivedAmount = round(max(0, (float) ($validated['received_amount'] ?? 0)), 2);
-                $paidAmount     = round(min($receivedAmount, $payableAmount), 2);
-
-                $dueAmount = round(max(0,$payableAmount - $paidAmount),2);
-
-                $changeAmount = round(max(0,$receivedAmount - $payableAmount),2);
-
-                if ($payableAmount > 0 && $paidAmount <= 0) {
-                    throw ValidationException::withMessages([
-                        'received_amount' => ['Payment amount must be greater than zero.'],
-                    ]);
-                }
-
-                $isPartiallyPaid = $paidAmount < $payableAmount;
-                // --------------------------------------------------------------
-                if ($isPartiallyPaid) {
-                    if (!$customerPhone) {
-                        throw ValidationException::withMessages([
-                            'phone_number' => ['Customer phone number is required for partial payments.'],
-                        ]);
-                    }
-
-                    if (!$customerName) {
-                        throw ValidationException::withMessages([
-                            'customer_name' => ['Customer name is required for partial payments.'],
-                        ]);
-                    }
-                }
-                // --------------------------------------------------------------
-
-                $paymentMethod = $validated['payment_method'] ?? OrderPayment::METHOD_CASH;
-
-                if (!in_array($paymentMethod, OrderPayment::PAYMENT_METHODS, true)) {
+                if (!in_array(
+                    $paymentMethod,
+                    OrderPayment::PAYMENT_METHODS,
+                    true
+                )) {
                     throw ValidationException::withMessages([
                         'payment_method' => ['Invalid payment method.'],
                     ]);
                 }
 
-                $point = (int) $cartItems->sum(fn ($item) => (int) ($item->point ?? 0) * (int) $item->quantity);
+                $isWalletPayment = $paymentMethod === 'wallet';
 
-                if ($payableAmount <= 0)
-                {
+                /*
+                |--------------------------------------------------------------------------
+                | Amount Calculation
+                |--------------------------------------------------------------------------
+                */
+
+                $subtotal = round(
+                    $cartItems->sum(
+                        fn ($item) =>
+                            (float) $item->price * (int) $item->quantity
+                    ),
+                    2
+                );
+
+                $cartDiscount = round(
+                    $cartItems->sum(
+                        fn ($item) =>
+                            (float) ($item->discount ?? 0) *
+                            (int) $item->quantity
+                    ),
+                    2
+                );
+
+                $manualDiscount = round(
+                    max(0, (float) ($validated['discount'] ?? 0)),
+                    2
+                );
+
+                $discount = round(
+                    min(
+                        $subtotal,
+                        $cartDiscount + $manualDiscount
+                    ),
+                    2
+                );
+
+                $discountedSubtotal = round(
+                    max(0, $subtotal - $discount),
+                    2
+                );
+
+                $vatPercentage = round(
+                    min(
+                        100,
+                        max(0, (float) ($validated['vat'] ?? 0))
+                    ),
+                    2
+                );
+
+                $vat = round(
+                    ($discountedSubtotal * $vatPercentage) / 100,
+                    2
+                );
+
+                $payableAmount = round(
+                    max(0, $discountedSubtotal + $vat),
+                    2
+                );
+
+                /*
+                |--------------------------------------------------------------------------
+                | Point Calculation
+                |--------------------------------------------------------------------------
+                */
+
+                $point = (int) $cartItems->sum(
+                    fn ($item) =>
+                        (int) ($item->point ?? 0) *
+                        (int) $item->quantity
+                );
+
+                /*
+                |--------------------------------------------------------------------------
+                | Wallet Payment
+                |--------------------------------------------------------------------------
+                */
+
+                if ($isWalletPayment) {
+
+                    if (!$customer) {
+                        throw ValidationException::withMessages([
+                            'customer' => [
+                                'Customer is required for wallet payment.'
+                            ],
+                        ]);
+                    }
+
+                    if ($point <= 0) {
+                        throw ValidationException::withMessages([
+                            'point' => [
+                                'This sale has no required points.'
+                            ],
+                        ]);
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Lock customer before checking point balance
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $customer = Customer::query()
+                        ->whereKey($customer->id)
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                    $availablePoints = $this->pointService
+                        ->getBalance($customer->id);
+
+                    if ($availablePoints < $point) {
+                        throw ValidationException::withMessages([
+                            'point' => [
+                                "Insufficient points. Available: {$availablePoints}, Required: {$point}."
+                            ],
+                        ]);
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Wallet never accepts cash
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $receivedAmount = 0;
+                    $paidAmount = $payableAmount;
+                    $dueAmount = 0;
+                    $changeAmount = 0;
+
+                } else {
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Normal Payment
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $receivedAmount = round(
+                        max(
+                            0,
+                            (float) ($validated['received_amount'] ?? 0)
+                        ),
+                        2
+                    );
+
+                    $paidAmount = round(
+                        min(
+                            $receivedAmount,
+                            $payableAmount
+                        ),
+                        2
+                    );
+
+                    $dueAmount = round(
+                        max(
+                            0,
+                            $payableAmount - $paidAmount
+                        ),
+                        2
+                    );
+
+                    $changeAmount = round(
+                        max(
+                            0,
+                            $receivedAmount - $payableAmount
+                        ),
+                        2
+                    );
+
+                    if ($payableAmount > 0 && $paidAmount <= 0) {
+                        throw ValidationException::withMessages([
+                            'received_amount' => [
+                                'Payment amount must be greater than zero.'
+                            ],
+                        ]);
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Partial Payment
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $isPartiallyPaid = $paidAmount < $payableAmount;
+
+                    if ($isPartiallyPaid) {
+
+                        if (!$customerPhone) {
+                            throw ValidationException::withMessages([
+                                'phone_number' => [
+                                    'Customer phone number is required for partial payments.'
+                                ],
+                            ]);
+                        }
+
+                        if (!$customerName) {
+                            throw ValidationException::withMessages([
+                                'customer_name' => [
+                                    'Customer name is required for partial payments.'
+                                ],
+                            ]);
+                        }
+                    }
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Order Status
+                |--------------------------------------------------------------------------
+                */
+
+                if ($payableAmount <= 0) {
                     $orderStatus = Order::STATUS_COMPLETED;
                 } elseif ($paidAmount >= $payableAmount) {
                     $orderStatus = Order::STATUS_COMPLETED;
@@ -1100,55 +1301,102 @@ class AdminCartController extends Controller
                     $orderStatus = Order::STATUS_UNPAID;
                 }
 
+                /*
+                |--------------------------------------------------------------------------
+                | Create Order
+                |--------------------------------------------------------------------------
+                */
+
                 $order = Order::create([
-                    'reg'            => $reg,
+                    'reg' => $reg,
+                    'order_date' => now()->toDateString(),
 
-                    'order_date'     => now()->toDateString(),
+                    'user_id' => $user->id,
+                    'customer_id' => $customer?->id,
 
-                    'user_id'        => $user->id,
-                    'customer_id'    => $customer?->id,
-                    'customer_name'  => $customerName ?: $customer?->customer_name ?: 'Walk-in Customer',
+                    'customer_name' =>
+                        $customerName
+                        ?: $customer?->customer_name
+                        ?: 'Walk-in Customer',
+
                     'customer_phone' => $customerPhone,
 
-                    'subtotal'       => $subtotal,
-                    'discount'       => $discount,
+                    'subtotal' => $subtotal,
+                    'discount' => $discount,
+
                     'vat_percentage' => $vatPercentage,
-                    'vat'            => $vat,
-                    'due_amount'     => $dueAmount,
+                    'vat' => $vat,
+
+                    'due_amount' => $dueAmount,
                     'payable_amount' => $payableAmount,
+
                     'payment_method' => $paymentMethod,
-                    'currency'       => Order::CURRENCY_BDT,
-                    'point'          => $point,
-                    'status'         => $orderStatus,
-                    'completed_at'   => $orderStatus === Order::STATUS_COMPLETED ? now() : null,
-                    'remarks'        => $validated['remarks'] ?? "Order created by user: {$user->name}",
-                    'paid_at'        => now()->toDateString(),
-                    'ip_address'     => $request->ip(),
-                    'user_agent'     => $request->userAgent(),
+                    'currency' => Order::CURRENCY_BDT,
+
+                    'point' => $point,
+
+                    'status' => $orderStatus,
+
+                    'completed_at' =>
+                        $orderStatus === Order::STATUS_COMPLETED
+                            ? now()
+                            : null,
+
+                    'remarks' =>
+                        $validated['remarks']
+                        ?? "Order created by user: {$user->name}",
+
+                    'paid_at' =>
+                        $paidAmount > 0
+                            ? now()
+                            : null,
+
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
                 ]);
+
+                /*
+                |--------------------------------------------------------------------------
+                | Payment
+                |--------------------------------------------------------------------------
+                */
 
                 $payment = null;
 
                 if ($paidAmount > 0) {
                     $payment = OrderPayment::create([
-                        'order_id'       => $order->id,
-                        'user_id'        => $user->id,
-                        'customer_id'    => $customer?->id,
-                        'received_by'    => $user->id,
-                        'payment_type'   => OrderPayment::TYPE_PAYMENT,
+                        'order_id' => $order->id,
+                        'user_id' => $user->id,
+                        'customer_id' => $customer?->id,
+
+                        'received_by' => $user->id,
+
+                        'payment_type' =>
+                            OrderPayment::TYPE_PAYMENT,
+
                         'payment_method' => $paymentMethod,
-                        'amount'         => $paidAmount,
-                        'currency'       => OrderPayment::CURRENCY_BDT,
-                        'paid_at'        => now(),
-                        'remarks'        => $validated['remarks'] ?? "Order payment",
-                        'ip_address'     => $request->ip(),
-                        'user_agent'     => $request->userAgent(),
+
+                        'amount' => $paidAmount,
+
+                        'currency' =>
+                            OrderPayment::CURRENCY_BDT,
+
+                        'paid_at' => now(),
+
+                        'remarks' =>
+                            $validated['remarks']
+                            ?? 'Order payment',
+
+                        'ip_address' => $request->ip(),
+                        'user_agent' => $request->userAgent(),
                     ]);
                 }
 
-                // =====================================================
-                // LOCK & VALIDATE STOCK
-                // =====================================================
+                /*
+                |--------------------------------------------------------------------------
+                | Stock Validation + Sale
+                |--------------------------------------------------------------------------
+                */
 
                 foreach ($cartItems as $cartItem) {
 
@@ -1160,13 +1408,11 @@ class AdminCartController extends Controller
                         ]);
                     }
 
-
                     $stock = Stock::query()
                         ->whereKey($cartItem->stock_id)
                         ->where('product_id', $cartItem->product_id)
                         ->lockForUpdate()
                         ->first();
-
 
                     if (!$stock) {
                         throw ValidationException::withMessages([
@@ -1176,7 +1422,6 @@ class AdminCartController extends Controller
                         ]);
                     }
 
-
                     if ($stock->status !== 'active') {
                         throw ValidationException::withMessages([
                             'cart' => [
@@ -1184,7 +1429,6 @@ class AdminCartController extends Controller
                             ],
                         ]);
                     }
-
 
                     if (
                         $stock->expiry_date &&
@@ -1197,14 +1441,14 @@ class AdminCartController extends Controller
                         ]);
                     }
 
-
                     $availableQty =
-                        (int) $stock->stockIn
-                        - (int) $stock->stockOut;
+                        (int) $stock->stockIn -
+                        (int) $stock->stockOut;
 
-
-                    if ($cartItem->quantity > $availableQty) {
-
+                    if (
+                        (int) $cartItem->quantity >
+                        $availableQty
+                    ) {
                         throw ValidationException::withMessages([
                             'cart' => [
                                 "Insufficient stock for product ID {$cartItem->product_id}."
@@ -1212,16 +1456,40 @@ class AdminCartController extends Controller
                         ]);
                     }
 
-
-                    // =================================================
-                    // ACTUAL SALE
-                    // =================================================
-
                     $stock->increment(
                         'stockOut',
                         (int) $cartItem->quantity
                     );
                 }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Point Transaction
+                |--------------------------------------------------------------------------
+                */
+
+                if ($isWalletPayment) {
+
+                    $this->pointService->redeemPoint(
+                        $customer,
+                        $order,
+                        $point
+                    );
+
+                } elseif ($customer && $point > 0) {
+
+                    $this->pointService->salePoint(
+                        $customer,
+                        $order->reg,
+                        $point
+                    );
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Load Relations
+                |--------------------------------------------------------------------------
+                */
 
                 $order->load([
                     'customer',
@@ -1241,25 +1509,30 @@ class AdminCartController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Order placed successfully.',
-                'data'    => [
-                    'order'         => $result['order'],
-                    'payment'       => $result['payment'],
+                'data' => [
+                    'order' => $result['order'],
+                    'payment' => $result['payment'],
                     'change_amount' => $result['change_amount'],
                 ],
             ], 201);
 
         } catch (ValidationException $e) {
+
             return response()->json([
                 'success' => false,
-                'message' => collect($e->errors())->flatten()->first(),
-                'errors'  => $e->errors(),
+                'message' => collect($e->errors())
+                    ->flatten()
+                    ->first(),
+                'errors' => $e->errors(),
             ], 422);
+
         } catch (\Throwable $e) {
+
             Log::error('Order confirmation failed', [
                 'user_id' => $user?->id,
-                'reg'     => $reg,
+                'reg' => $reg,
                 'message' => $e->getMessage(),
-                'trace'   => $e->getTraceAsString(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([

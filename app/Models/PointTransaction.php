@@ -10,23 +10,26 @@ class PointTransaction extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id',
-        'type', 'points', 'matching_count',
-        'bonus_amount', 'bonus_status',
-        'source', 'month','rank' ,'reference_id', 'note'
+        'customer_id',
+        'type',
+        'points',
+        'status',
+        'source',
+        'order_id',
+        'remarks',
     ];
 
     protected $casts = [
-        'bonus_amount' => 'decimal:2',
-        'points'       => 'integer',
+        'points' => 'integer',
     ];
 
-    public function user()
+    public function customer()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Customer::class);
     }
 
-    public function referenceUser(){
-        return $this->belongsTo(User::class, 'reference_id');
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
     }
 }

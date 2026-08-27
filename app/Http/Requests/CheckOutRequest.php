@@ -16,7 +16,6 @@ class CheckOutRequest extends FormRequest
     public function rules(): array
     {
         return [
-
             'customer_name' => [
                 'nullable',
                 'string',
@@ -27,20 +26,20 @@ class CheckOutRequest extends FormRequest
                 'nullable',
                 'string',
                 'max:20',
-                'regex:/^[0-9+\-\s()]+$/', // basic phone format guard
+                'regex:/^[0-9+\-\s()]+$/',
             ],
 
             'payment_method' => [
                 'required',
                 'string',
-                'in:cash,card,mobile,bkash,nagad,rocket',
+                'in:cash,card,mobile,bkash,nagad,rocket,wallet',
             ],
 
             'vat' => [
                 'nullable',
                 'numeric',
                 'min:0',
-                'max:100', // vat is a percentage now
+                'max:100',
             ],
 
             'discount' => [
@@ -50,7 +49,7 @@ class CheckOutRequest extends FormRequest
             ],
 
             'received_amount' => [
-                'required',
+                'nullable',
                 'numeric',
                 'min:0',
             ],
