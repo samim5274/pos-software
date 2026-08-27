@@ -112,31 +112,72 @@ class OrderController extends Controller
     {
         try {
 
-            $result = DB::transaction(function () use ($request, $reg, $slug, $id) {
+            $result = DB::transaction(function () use (
+                $request,
+                $reg,
+                $slug,
+                $id
+            ) {
 
-                $order = Order::query()->where('id', $id)->where('reg', $reg)->where('slug', $slug)
+                /*
+                |--------------------------------------------------------------------------
+                | Find Order
+                |--------------------------------------------------------------------------
+                */
+
+                $order = Order::query()
+                    ->where('id', $id)
+                    ->where('reg', $reg)
+                    ->where('slug', $slug)
                     ->lockForUpdate()
                     ->first();
 
                 if (!$order) {
+
                     throw ValidationException::withMessages([
-                        'order' => ['Order not found.'],
+                        'order' => [
+                            'Order not found.'
+                        ],
                     ]);
                 }
 
+
+                /*
+                |--------------------------------------------------------------------------
+                | Already Returned
+                |--------------------------------------------------------------------------
+                */
+
                 if ($order->status === Order::STATUS_RETURNED) {
+
                     throw ValidationException::withMessages([
-                        'order' => ['This order has already been returned.'],
+                        'order' => [
+                            'This order has already been returned.'
+                        ],
                     ]);
                 }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | Returnable Status
+                |--------------------------------------------------------------------------
+                |
+                | Make sure "paid" is included because your POS may use
+                | "paid" instead of "completed".
+                |
+                */
 
                 $returnableStatuses = [
                     Order::STATUS_COMPLETED,
                     Order::STATUS_PARTIALLY_PAID,
                     Order::STATUS_UNPAID,
+                    'paid',
                 ];
 
+
                 if (!in_array($order->status, $returnableStatuses, true)) {
+
                     throw ValidationException::withMessages([
                         'order' => [
                             "Order with status '{$order->status}' cannot be returned."
@@ -144,115 +185,328 @@ class OrderController extends Controller
                     ]);
                 }
 
-                $payments = OrderPayment::query()->where('order_id', $order->id)->where('payment_type', OrderPayment::TYPE_PAYMENT)
+
+                /*
+                |--------------------------------------------------------------------------
+                | Get Original Payments
+                |--------------------------------------------------------------------------
+                |
+                | Only original payment records.
+                | Refund records are excluded.
+                |
+                */
+
+                $payments = OrderPayment::query()
+                    ->where('order_id', $order->id)
+                    ->where(
+                        'payment_type',
+                        OrderPayment::TYPE_PAYMENT
+                    )
                     ->lockForUpdate()
                     ->get();
 
-                /*
-                |--------------------------------------------------------------------------
-                | Calculate total paid
-                |--------------------------------------------------------------------------
-                */
-                $totalPaid = round((float) $payments->sum('amount'), 2);
 
                 /*
                 |--------------------------------------------------------------------------
-                | Calculate refund
+                | Calculate Total Paid
                 |--------------------------------------------------------------------------
                 */
-                $refundAmount = min($totalPaid,(float) $order->payable_amount);
+
+                $totalPaid = round(
+                    (float) $payments->sum('amount'),
+                    2
+                );
+
 
                 /*
                 |--------------------------------------------------------------------------
-                | Update order
+                | Calculate Payable
                 |--------------------------------------------------------------------------
                 */
-                $order->update([
-                    'status'      => Order::STATUS_RETURNED,
-                    'returned_at' => now(),
-                    'returned_by' => auth()->id(),
-                ]);
+
+                $payableAmount = round(
+                    (float) $order->payable_amount,
+                    2
+                );
+
 
                 /*
                 |--------------------------------------------------------------------------
-                | Create refund payment
+                | Calculate Refund
                 |--------------------------------------------------------------------------
-                |
-                | Do NOT change original payment_type from "payment"
-                | to "refund". Keep the payment history intact.
-                |
                 */
+
+                $refundAmount = min(
+                    $totalPaid,
+                    $payableAmount
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | Create Refund Payment
+                |--------------------------------------------------------------------------
+                */
+
                 $refundPayment = null;
 
                 if ($refundAmount > 0) {
 
-                    $paymentMethod = $payments->first()?->payment_method
-                        ?? $order->payment_method;
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Refund payment method
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $paymentMethod =
+                        $payments->first()?->payment_method
+                        ?? ($order->payment_method ?? null)
+                        ?? OrderPayment::METHOD_CASH;
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Unique Refund Payment Number
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $paymentNumber = null;
+
+                    do {
+
+                        $paymentNumber =
+                            'REF-' .
+                            now()->format('YmdHis') .
+                            '-' .
+                            $order->id .
+                            '-' .
+                            strtoupper(
+                                Str::random(6)
+                            );
+
+                    } while (
+                        OrderPayment::where(
+                            'payment_number',
+                            $paymentNumber
+                        )->exists()
+                    );
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Create Refund
+                    |--------------------------------------------------------------------------
+                    */
 
                     $refundPayment = OrderPayment::create([
-                        'order_id'      => $order->id,
-                        'user_id'       => auth()->id(),
-                        'customer_id'   => $order->customer_id,
 
-                        'payment_number' => 'REF-' . now()->format('YmdHis') . '-' . $order->id,
-                        'receipt_no'     => null,
+                        'order_id' =>
+                            $order->id,
 
-                        'payment_type'   => OrderPayment::TYPE_REFUND,
-                        'payment_method' => $paymentMethod,
+                        'user_id' =>
+                            auth()->id(),
 
-                        'amount'        => $refundAmount,
-                        'currency'      => $order->currency ?? Order::CURRENCY_BDT,
+                        'customer_id' =>
+                            $order->customer_id,
 
-                        'paid_at'       => now(),
+                        'payment_number' =>
+                            $paymentNumber,
 
-                        'verified_by'   => auth()->id(),
-                        'verified_at'   => now(),
+                        'receipt_no' =>
+                            null,
 
-                        'remarks'       => 'Refund for returned order ' . $order->order_number,
+                        'payment_type' =>
+                            OrderPayment::TYPE_REFUND,
 
-                        'ip_address'    => $request->ip(),
-                        'user_agent'    => $request->userAgent(),
+                        'payment_method' =>
+                            $paymentMethod,
+
+                        'amount' =>
+                            $refundAmount,
+
+                        'currency' =>
+                            $order->currency
+                            ?? OrderPayment::CURRENCY_BDT,
+
+                        'paid_at' =>
+                            now(),
+
+                        'verified_by' =>
+                            auth()->id(),
+
+                        'verified_at' =>
+                            now(),
+
+                        'remarks' =>
+                            'Refund for returned order ' .
+                            ($order->order_number ?? $order->reg),
+
+                        'ip_address' =>
+                            $request->ip(),
+
+                        'user_agent' =>
+                            $request->userAgent(),
                     ]);
                 }
 
+
+                /*
+                |--------------------------------------------------------------------------
+                | Update Order
+                |--------------------------------------------------------------------------
+                */
+
+                $order->update([
+
+                    'status' =>
+                        Order::STATUS_RETURNED,
+
+                    'returned_at' =>
+                        now(),
+
+                    'returned_by' =>
+                        auth()->id(),
+                ]);
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | Fresh Data
+                |--------------------------------------------------------------------------
+                */
+
+                $order->refresh();
+
+                if ($refundPayment) {
+                    $refundPayment->refresh();
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | Return Transaction Result
+                |--------------------------------------------------------------------------
+                */
+
                 return [
-                    'order'         => $order->fresh(),
-                    'refund'        => $refundPayment,
-                    'total_paid'    => $totalPaid,
-                    'refund_amount' => $refundAmount,
+
+                    'order' =>
+                        $order,
+
+                    'refund' =>
+                        $refundPayment,
+
+                    'total_paid' =>
+                        $totalPaid,
+
+                    'payable_amount' =>
+                        $payableAmount,
+
+                    'refund_amount' =>
+                        $refundAmount,
+
                 ];
             });
 
+
+            /*
+            |--------------------------------------------------------------------------
+            | Success Response
+            |--------------------------------------------------------------------------
+            */
+
             return response()->json([
+
                 'success' => true,
-                'message' => 'Order returned successfully.',
+
+                'message' =>
+                    'Order returned successfully.',
+
                 'data' => $result,
+
             ], 200);
+
 
         } catch (ValidationException $e) {
 
+            /*
+            |--------------------------------------------------------------------------
+            | Validation Error
+            |--------------------------------------------------------------------------
+            */
+
+            $errors = $e->errors();
+
+            $message = collect($errors)
+                ->flatten()
+                ->first()
+                ?? 'Unable to return this order.';
+
+
             return response()->json([
+
                 'success' => false,
-                'message' => $e->getMessage(),
-                'errors'  => $e->errors(),
+
+                'message' =>
+                    $message,
+
+                'errors' =>
+                    $errors,
+
             ], 422);
+
 
         } catch (\Throwable $e) {
 
-            Log::error('ORDER RETURN ERROR', [
-                'order_id' => $id,
-                'reg'      => $reg,
-                'slug'     => $slug,
-                'user_id'  => auth()->id(),
+            /*
+            |--------------------------------------------------------------------------
+            | Log Error
+            |--------------------------------------------------------------------------
+            */
 
-                'message'  => $e->getMessage(),
-                'line'     => $e->getLine(),
-                'file'     => $e->getFile(),
+            Log::error('ORDER RETURN ERROR', [
+
+                'order_id' =>
+                    $id,
+
+                'reg' =>
+                    $reg,
+
+                'slug' =>
+                    $slug,
+
+                'user_id' =>
+                    auth()->id(),
+
+                'message' =>
+                    $e->getMessage(),
+
+                'line' =>
+                    $e->getLine(),
+
+                'file' =>
+                    $e->getFile(),
+
+                'trace' =>
+                    $e->getTraceAsString(),
             ]);
 
+
+            /*
+            |--------------------------------------------------------------------------
+            | Error Response
+            |--------------------------------------------------------------------------
+            */
+
             return response()->json([
+
                 'success' => false,
-                'message' => 'Unable to return the order. Please try again later.',
+
+                'message' =>
+                    config('app.debug')
+                        ? $e->getMessage()
+                        : 'Unable to return the order. Please try again later.',
+
             ], 500);
         }
     }
