@@ -297,6 +297,7 @@ class OrderController extends Controller
 
                     $q->where('payment_number', 'like', "%{$search}%")
                         ->orWhere('receipt_no', 'like', "%{$search}%")
+                        ->orWhere('payment_method', 'like', "%{$search}%")
                         ->orWhere('remarks', 'like', "%{$search}%");
 
                     $q->orWhereHas('order', function ($order) use ($search) {
@@ -406,6 +407,69 @@ class OrderController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Something went wrong while fetching order details.',
+            ], 500);
+        }
+    }
+
+    public function getOrderPaymentDetails($paymentNumber, $orderId)
+    {
+        try {
+            $user = auth()->user();
+
+            $order = Order::with([
+                    'user:id,name,user_id',
+                    'customer:id,customer_name,phone,address',
+                ])
+                ->find($orderId);
+
+            if (! $order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Order not found.',
+                    'data'    => null,
+                ], 404);
+            }
+
+            $orderPayment = OrderPayment::with([
+                    'user:id,name,user_id',
+                    'verifier:id,name,user_id',
+                    'receiver:id,name,user_id',
+                ])
+                ->where('order_id', $orderId)
+                ->orderBy('id', 'desc')
+                ->get();
+
+            if ($orderPayment->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No payment records found for this order.',
+                    'data'    => null,
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order payment details fetched successfully.',
+                'data' => [
+                    'order'        => $order,
+                    'orderPayment' => $orderPayment,
+                    'user'         => $user,
+                ],
+            ], 200);
+
+        } catch (\Throwable $e) {
+            Log::error('Get Order Payment Details Error', [
+                'message'        => $e->getMessage(),
+                'file'           => $e->getFile(),
+                'line'           => $e->getLine(),
+                'payment_number' => $paymentNumber,
+                'order_id'       => $orderId,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong while fetching order payment details.',
+                'error'   => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }

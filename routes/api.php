@@ -167,7 +167,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::put('/cart/{id}', [PurchaseController::class, 'updateCartItem']);
         Route::post('/remove-to-cart/{cart_id}/{reg}/{product_id}', [PurchaseController::class, 'removeToCart']);
         Route::post('/checkout/{reg}', [PurchaseController::class, 'confirmOrder']);
-        
+
         Route::get('/order/details/{reg}', [PurchaseController::class, 'getPurchaseDetails']);
         Route::post('/due/collection', [PurchaseController::class, 'dueCollection']);
     });
@@ -358,6 +358,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Route::post('/check-coupon', [CouponController::class, 'checkCoupon']);
 
         Route::get('/{reg}', [OrderController::class, 'getOrderDetails']);
+        Route::get('/payment/{paymentNumber}/{orderId}', [OrderController::class, 'getOrderPaymentDetails']);
     });
 });
 
