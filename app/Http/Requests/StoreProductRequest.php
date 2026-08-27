@@ -98,11 +98,11 @@ class StoreProductRequest extends FormRequest
             |--------------------------------------------------------------------------
             */
 
-            'stock_quantity' => [
-                'required',
-                'integer',
-                'min:0',
-            ],
+            // 'stock_quantity' => [
+            //     'required',
+            //     'integer',
+            //     'min:0',
+            // ],
 
             'min_stock' => [
                 'nullable',
@@ -242,9 +242,9 @@ class StoreProductRequest extends FormRequest
             |--------------------------------------------------------------------------
             */
 
-            'stock_quantity.required' => 'Stock quantity is required.',
-            'stock_quantity.integer' => 'Stock quantity must be a whole number.',
-            'stock_quantity.min' => 'Stock quantity cannot be negative.',
+            // 'stock_quantity.required' => 'Stock quantity is required.',
+            // 'stock_quantity.integer' => 'Stock quantity must be a whole number.',
+            // 'stock_quantity.min' => 'Stock quantity cannot be negative.',
 
             'min_stock.integer' => 'Minimum stock must be a whole number.',
             'min_stock.min' => 'Minimum stock cannot be negative.',

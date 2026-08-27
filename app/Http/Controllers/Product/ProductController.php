@@ -609,7 +609,7 @@ class ProductController extends Controller
                     'purchase_price'   => $data['purchase_price'],
                     'price'            => $data['price'],
                     'discount'         => $data['discount'] ?? 0,
-                    'stock_quantity'   => $data['stock_quantity'],
+                    // 'stock_quantity'   => $data['stock_quantity'],
                     'min_stock'        => $data['min_stock'] ?? 0,
                     'summary'          => $data['summary'] ?? null,
                     'description'      => $data['description'] ?? null,
@@ -726,7 +726,7 @@ class ProductController extends Controller
 
             'price' => 'required|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
-            'stock_quantity' => 'required|integer|min:0',
+            // 'stock_quantity' => 'required|integer|min:0',
             'min_stock' => 'nullable|integer|min:0',
 
             'summary' => 'nullable|string|max:1000',
@@ -754,7 +754,7 @@ class ProductController extends Controller
 
                     'price' => $request->price,
                     'discount' => $request->discount,
-                    'stock_quantity' => $request->stock_quantity,
+                    // 'stock_quantity' => $request->stock_quantity,
                     'min_stock' => $request->min_stock,
 
                     'summary' => $request->summary,

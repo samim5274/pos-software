@@ -35,6 +35,8 @@ use App\Models\OrderPayment;
 use App\Models\Coupon;
 use App\Models\CouponUsage;
 use App\Models\Notice;
+use App\Models\Stock;
+use App\Models\Product;
 
 class OrderController extends Controller
 {
@@ -387,6 +389,30 @@ class OrderController extends Controller
                 | Return Transaction Result
                 |--------------------------------------------------------------------------
                 */
+
+                // Restore stock
+                $cartItems = Cart::where('reg', $order->reg)
+                    ->lockForUpdate()
+                    ->get();
+
+                foreach ($cartItems as $item) {
+                    if (!$item->stock_id || !$item->quantity) continue;
+
+                    $stock = Stock::where('id', $item->stock_id)
+                        ->where('product_id', $item->product_id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (!$stock) continue;
+
+                    $qty = (float) $item->quantity;
+
+                    $stock->decrement('stockOut', $qty);
+
+                    // Product::where('id', $item->product_id)
+                    //     ->lockForUpdate()
+                    //     ->increment('stock_quantity', $qty);
+                }
 
                 return [
 
