@@ -161,15 +161,20 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/orders', [PurchaseController::class, 'purchaseOrder']);
         Route::get('/add-to-cart', [PurchaseController::class, 'addToCard']);
         Route::post('/add-to-cart-search', [PurchaseController::class, 'adminAddToCartSearch']);
-        Route::get('/{reg}', [PurchaseController::class, 'getCartItem']);
         Route::post('/add-to-cart', [PurchaseController::class, 'adminAddToCart']);
+        Route::get('/order/details/{reg}', [PurchaseController::class, 'getPurchaseDetails']);
+        Route::post('/due/collection', [PurchaseController::class, 'dueCollection']);
+
+        Route::prefix('reports')->group(function () {
+            Route::get('/', [PurchaseController::class, 'purchaseReport']);
+            Route::get('/filter', [PurchaseController::class, 'reportSaleFilter']);
+        });
+
+        Route::get('/{reg}', [PurchaseController::class, 'getCartItem']);
         Route::post('/qty-update/{reg}/{product_id}', [PurchaseController::class, 'updateQty']);
         Route::put('/cart/{id}', [PurchaseController::class, 'updateCartItem']);
         Route::post('/remove-to-cart/{cart_id}/{reg}/{product_id}', [PurchaseController::class, 'removeToCart']);
         Route::post('/checkout/{reg}', [PurchaseController::class, 'confirmOrder']);
-
-        Route::get('/order/details/{reg}', [PurchaseController::class, 'getPurchaseDetails']);
-        Route::post('/due/collection', [PurchaseController::class, 'dueCollection']);
     });
 });
 
