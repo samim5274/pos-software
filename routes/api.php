@@ -33,6 +33,7 @@ use App\Http\Controllers\Notice\NoticeController;
 
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Expenses\ExpensesController;
+use App\Http\Controllers\Report\ReportController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
@@ -506,7 +507,11 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 
-
+Route::middleware('auth:sanctum')->group(function () {
+    Route::prefix('reports')->group(function () {
+        Route::get('/products', [ReportController::class, 'index']);
+    });
+});
 
 
 

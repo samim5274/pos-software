@@ -12,7 +12,8 @@ chmod -R 775 storage bootstrap/cache
 
 git pull origin main or git pull --no-rebase origin main
 
-
+// git change thakle seta shoho current code change na kore rebase korbe. then push korte hobe
+git pull --rebase origin main
 
 
 # ১.
