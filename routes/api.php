@@ -510,6 +510,7 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('reports')->group(function () {
         Route::get('/products', [ReportController::class, 'index']);
+        Route::get('/customer/due', [ReportController::class, 'customerDue']);
     });
 });
 

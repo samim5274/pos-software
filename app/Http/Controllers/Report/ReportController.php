@@ -81,4 +81,75 @@ class ReportController extends Controller
             ],
         ]);
     }
+
+    public function customerDue(Request $request): JsonResponse
+    {
+        try {
+
+            $perPage = min(
+                max((int) $request->input('per_page', 20), 1),
+                100
+            );
+
+            $search = trim((string) $request->input('search', ''));
+
+            $query = Order::query()
+                ->join('customers', 'customers.id', '=', 'orders.customer_id')
+                ->select([
+                    'customers.id',
+                    'customers.customer_name AS name',
+                    'customers.phone',
+                ])
+                ->selectRaw('SUM(orders.payable_amount) AS total_payable')
+                ->selectRaw('SUM(orders.due_amount) AS total_due')
+                ->whereNotNull('orders.customer_id')
+                ->whereIn('orders.status', [
+                    Order::STATUS_UNPAID,
+                    Order::STATUS_PARTIALLY_PAID,
+                ])
+                ->where('orders.due_amount', '>', 0)
+                ->when($search !== '', function ($q) use ($search) {
+                    $q->where(function ($sub) use ($search) {
+                        $sub->where('customers.customer_name', 'like', "%{$search}%")
+                            ->orWhere('customers.phone', 'like', "%{$search}%");
+                    });
+                })
+                ->groupBy('customers.id', 'customers.customer_name', 'customers.phone')
+                ->orderByDesc('total_due');
+
+            $customers = $query->paginate($perPage)->withQueryString();
+
+            $grandTotalDue = Order::query()
+                ->whereNotNull('customer_id')
+                ->whereIn('status', [
+                    Order::STATUS_UNPAID,
+                    Order::STATUS_PARTIALLY_PAID,
+                ])
+                ->where('due_amount', '>', 0)
+                ->sum('due_amount');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Customer due report retrieved successfully.',
+                'data' => $customers,
+                'total_due' => round((float) $grandTotalDue, 2),
+                'total_customers' => $customers->total(),
+            ]);
+
+        } catch (\Throwable $e) {
+
+            Log::error('Customer Due Report Error', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve customer due report.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
 }
