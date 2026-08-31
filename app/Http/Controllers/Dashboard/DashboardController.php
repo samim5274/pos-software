@@ -3,32 +3,18 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Validator;
 use Exception;
 use Carbon\Carbon;
 
-use App\Models\User;
 use App\Models\Order;
 use App\Models\OrderPayment;
 
 class DashboardController extends Controller
 {
-
     public function dashboard()
     {
         try {
-            $today = Carbon::today();
-
             $user = Auth::user();
 
             if (!$user) {
@@ -38,86 +24,220 @@ class DashboardController extends Controller
                 ], 401);
             }
 
+            // Cache the base counts/sums once instead of hitting the DB
+            // repeatedly for the same numbers (was called 5+ times before).
+            $totalOrders          = Order::count();
+            $totalPayableAmount   = (float) Order::sum('payable_amount');
+            $totalDueAmount       = (float) Order::sum('due_amount');
+            $totalSubtotal        = (float) Order::sum('subtotal');
+            $totalDiscount        = (float) Order::sum('discount');
+            $totalVat             = (float) Order::sum('vat');
+            $totalPoints          = (int) Order::sum('point');
+
+            $pendingOrders        = Order::where('status', Order::STATUS_PENDING)->count();
+            $unpaidOrders         = Order::where('status', Order::STATUS_UNPAID)->count();
+            $partiallyPaidOrders  = Order::where('status', Order::STATUS_PARTIALLY_PAID)->count();
+            $completedOrders      = Order::where('status', Order::STATUS_COMPLETED)->count();
+            $returnedOrders       = Order::where('status', Order::STATUS_RETURNED)->count();
+
             $orderSummary = [
                 // Order Summary
-                'total_orders'            => Order::count(),
-                'pending_orders'          => Order::pending()->count(),
-                'confirmed_orders'        => Order::confirmed()->count(),
-                'processing_orders'       => Order::processing()->count(),
-                'picked_orders'           => Order::where('status', Order::STATUS_PICKED)->count(),
-                'shipped_orders'          => Order::where('status', Order::STATUS_SHIPPED)->count(),
-                'out_for_delivery_orders' => Order::where('status', Order::STATUS_OUT_FOR_DELIVERY)->count(),
-                'delivered_orders'        => Order::delivered()->count(),
-                'cancelled_orders'        => Order::cancelled()->count(),
-                'failed_orders'           => Order::where('status', Order::STATUS_FAILED)->count(),
-                'returned_orders'         => Order::where('status', Order::STATUS_RETURNED)->count(),
+                'total_orders' => $totalOrders,
+                'pending_orders' => $pendingOrders,
+                'unpaid_orders' => $unpaidOrders,
+                'partially_paid_orders' => $partiallyPaidOrders,
+                'completed_orders' => $completedOrders,
+                'returned_orders' => $returnedOrders,
 
-                // Payment Summary
-                'pending_payments'        => Order::where('payment_status', Order::PAYMENT_PENDING)->count(),
-                'partial_payments'        => Order::where('payment_status', Order::PAYMENT_PARTIAL)->count(),
-                'paid_orders'             => Order::paid()->count(),
-                'failed_payments'         => Order::where('payment_status', Order::PAYMENT_FAILED)->count(),
-                'refunded_orders'         => Order::where('payment_status', Order::PAYMENT_REFUNDED)->count(),
+                // Status Percentage
+                'pending_percentage' => $totalOrders ? round($pendingOrders / $totalOrders * 100, 2) : 0,
+                'unpaid_percentage' => $totalOrders ? round($unpaidOrders / $totalOrders * 100, 2) : 0,
+                'partially_paid_percentage' => $totalOrders ? round($partiallyPaidOrders / $totalOrders * 100, 2) : 0,
+                'completed_percentage' => $totalOrders ? round($completedOrders / $totalOrders * 100, 2) : 0,
+                'returned_percentage' => $totalOrders ? round($returnedOrders / $totalOrders * 100, 2) : 0,
+
+                // Financial
+                'total_subtotal' => $totalSubtotal,
+                'total_discount' => $totalDiscount,
+                'total_vat' => $totalVat,
+                'total_payable_amount' => $totalPayableAmount,
+                'total_due_amount' => $totalDueAmount,
+                'total_paid_amount' => $totalPayableAmount - $totalDueAmount,
+                'total_collection' => $totalPayableAmount - $totalDueAmount,
+                'total_outstanding' => $totalDueAmount,
+
+                // Payment
+                'fully_paid_orders' => Order::where('due_amount', '<=', 0)->where('payable_amount', '>', 0)->count(),
+                'paid_orders' => Order::where('due_amount', '<=', 0)->where('payable_amount', '>', 0)->count(),
+                'due_orders' => Order::where('due_amount', '>', 0)->count(),
+                'zero_value_orders' => Order::where('payable_amount', '<=', 0)->count(),
 
                 // Payment Method
-                'cod_orders'              => Order::where('payment_method', Order::PAYMENT_METHOD_COD)->count(),
-                'advance_orders'          => Order::where('payment_method', Order::PAYMENT_METHOD_ONLINE)->count(),
+                'cash_orders' => Order::where('payment_method', Order::PAYMENT_METHOD_CASH)->count(),
+                'card_orders' => Order::where('payment_method', Order::PAYMENT_METHOD_CARD)->count(),
+                'bank_transfer_orders' => Order::where('payment_method', Order::PAYMENT_METHOD_BANK_TRANSFER)->count(),
+                'bkash_orders' => Order::where('payment_method', Order::PAYMENT_METHOD_BKASH)->count(),
+                'nagad_orders' => Order::where('payment_method', Order::PAYMENT_METHOD_NAGAD)->count(),
+                'rocket_orders' => Order::where('payment_method', Order::PAYMENT_METHOD_ROCKET)->count(),
+                'wallet_orders' => Order::where('payment_method', Order::PAYMENT_METHOD_WALLET)->count(),
 
-                // Financial Summary
-                'total_sales'             => (float) Order::sum('amount'),
-                'total_revenue'           => (float) Order::sum('payable_amount'),
-                'total_paid_amount'       => (float) Order::sum('paid_amount'),
-                'total_due_amount'        => (float) Order::sum('due_amount'),
-                'total_shipping_charge'   => (float) Order::sum('shipping_charge'),
-                'total_discount'          => (float) Order::sum('discount'),
-                'total_coupon_discount'   => (float) Order::sum('coupon_discount'),
-                'total_tax'               => (float) Order::sum('tax'),
-                'total_points'            => (int) Order::sum('point'),
+                // Payment Amount
+                'cash_amount' => (float) Order::where('payment_method', Order::PAYMENT_METHOD_CASH)->sum('payable_amount'),
+                'card_amount' => (float) Order::where('payment_method', Order::PAYMENT_METHOD_CARD)->sum('payable_amount'),
+                'bank_transfer_amount' => (float) Order::where('payment_method', Order::PAYMENT_METHOD_BANK_TRANSFER)->sum('payable_amount'),
+                'bkash_amount' => (float) Order::where('payment_method', Order::PAYMENT_METHOD_BKASH)->sum('payable_amount'),
+                'nagad_amount' => (float) Order::where('payment_method', Order::PAYMENT_METHOD_NAGAD)->sum('payable_amount'),
+                'rocket_amount' => (float) Order::where('payment_method', Order::PAYMENT_METHOD_ROCKET)->sum('payable_amount'),
+                'wallet_amount' => (float) Order::where('payment_method', Order::PAYMENT_METHOD_WALLET)->sum('payable_amount'),
+
+                // Customer
+                'total_customers' => Order::whereNotNull('customer_id')->distinct('customer_id')->count('customer_id'),
+                'guest_orders' => Order::whereNull('customer_id')->count(),
+                'registered_customer_orders' => Order::whereNotNull('customer_id')->count(),
+                'customer_sales' => (float) Order::whereNotNull('customer_id')->sum('payable_amount'),
+                'guest_sales' => (float) Order::whereNull('customer_id')->sum('payable_amount'),
+                'customer_due' => (float) Order::whereNotNull('customer_id')->sum('due_amount'),
+                'guest_due' => (float) Order::whereNull('customer_id')->sum('due_amount'),
+
+                // Discount
+                'orders_with_discount' => Order::where('discount', '>', 0)->count(),
+                'orders_without_discount' => Order::where('discount', 0)->count(),
+                'average_discount' => $totalOrders ? $totalDiscount / $totalOrders : 0,
+
+                // VAT
+                'orders_with_vat' => Order::where('vat', '>', 0)->count(),
+                'orders_without_vat' => Order::where('vat', 0)->count(),
+                'total_vat_amount' => $totalVat,
+                'average_vat' => $totalOrders ? $totalVat / $totalOrders : 0,
+
+                // Points
+                'total_points' => $totalPoints,
+                'orders_with_points' => Order::where('point', '>', 0)->count(),
+                'orders_without_points' => Order::where('point', 0)->count(),
+                'average_points_per_order' => $totalOrders ? $totalPoints / $totalOrders : 0,
+
+                // Average
+                'average_order_value' => $totalOrders ? $totalPayableAmount / $totalOrders : 0,
+                'average_subtotal' => $totalOrders ? $totalSubtotal / $totalOrders : 0,
+                'average_due_per_order' => $totalOrders ? $totalDueAmount / $totalOrders : 0,
+
+                // Today
+                'today_orders' => Order::whereDate('order_date', today())->count(),
+                'today_sales' => (float) Order::whereDate('order_date', today())->sum('payable_amount'),
+                'today_due' => (float) Order::whereDate('order_date', today())->sum('due_amount'),
+
+                // This Month
+                'this_month_orders' => Order::whereMonth('order_date', now()->month)->whereYear('order_date', now()->year)->count(),
+                'this_month_sales' => (float) Order::whereMonth('order_date', now()->month)->whereYear('order_date', now()->year)->sum('payable_amount'),
+                'this_month_discount' => (float) Order::whereMonth('order_date', now()->month)->whereYear('order_date', now()->year)->sum('discount'),
+                'this_month_vat' => (float) Order::whereMonth('order_date', now()->month)->whereYear('order_date', now()->year)->sum('vat'),
+                'this_month_due' => (float) Order::whereMonth('order_date', now()->month)->whereYear('order_date', now()->year)->sum('due_amount'),
+
+                // Date
+                'first_order_date' => Order::min('order_date'),
+                'last_order_date' => Order::max('order_date'),
+
+                // Completion
+                'completed_with_date' => Order::where('status', Order::STATUS_COMPLETED)->whereNotNull('completed_at')->count(),
+                'returned_with_date' => Order::where('status', Order::STATUS_RETURNED)->whereNotNull('returned_at')->count(),
+
+                // Currency
+                'bdt_orders' => Order::where('currency', Order::CURRENCY_BDT)->count(),
+
+                // Users
+                'total_sales_users' => Order::distinct('user_id')->count('user_id'),
+
+                // Returned
+                'returned_orders_amount' => (float) Order::where('status', Order::STATUS_RETURNED)->sum('payable_amount'),
+                'returned_orders_due' => (float) Order::where('status', Order::STATUS_RETURNED)->sum('due_amount'),
+
+                // Completed
+                'completed_sales' => (float) Order::where('status', Order::STATUS_COMPLETED)->sum('payable_amount'),
+                'completed_due' => (float) Order::where('status', Order::STATUS_COMPLETED)->sum('due_amount'),
+
+                // Pending
+                'pending_sales' => (float) Order::where('status', Order::STATUS_PENDING)->sum('payable_amount'),
+                'pending_due' => (float) Order::where('status', Order::STATUS_PENDING)->sum('due_amount'),
+
+                // Unpaid
+                'unpaid_sales' => (float) Order::where('status', Order::STATUS_UNPAID)->sum('payable_amount'),
+                'unpaid_due' => (float) Order::where('status', Order::STATUS_UNPAID)->sum('due_amount'),
+
+                // Partial
+                'partial_paid_sales' => (float) Order::where('status', Order::STATUS_PARTIALLY_PAID)->sum('payable_amount'),
+                'partial_paid_due' => (float) Order::where('status', Order::STATUS_PARTIALLY_PAID)->sum('due_amount'),
+
+                // Net Sales
+                'net_sales' => (float) (
+                    $totalPayableAmount -
+                    Order::where('status', Order::STATUS_RETURNED)->sum('payable_amount')
+                ),
             ];
 
+            $totalPayments = OrderPayment::count();
+            $totalPaymentAmount = (float) OrderPayment::sum('amount');
+            $totalPaymentDiscount = (float) OrderPayment::sum('discount');
+
             $paymentSummary = [
+                'total_transactions' => $totalPayments,
 
-                // Status
-                'total_transactions' => OrderPayment::count(),
-                'pending' => OrderPayment::pending()->count(),
-                'processing' => OrderPayment::processing()->count(),
-                'success' => OrderPayment::success()->count(),
-                'failed' => OrderPayment::failed()->count(),
-                'cancelled' => OrderPayment::where('status', OrderPayment::STATUS_CANCELLED)->count(),
-                'refunded' => OrderPayment::where('status', OrderPayment::STATUS_REFUNDED)->count(),
-
-                // Payment Type
                 'payment' => OrderPayment::where('payment_type', OrderPayment::TYPE_PAYMENT)->count(),
                 'refund' => OrderPayment::where('payment_type', OrderPayment::TYPE_REFUND)->count(),
                 'adjustment' => OrderPayment::where('payment_type', OrderPayment::TYPE_ADJUSTMENT)->count(),
 
-                // Channel
-                'online' => OrderPayment::online()->count(),
-                'offline' => OrderPayment::offline()->count(),
-
-                // Payment Method
-                'cod' => OrderPayment::where('payment_method', OrderPayment::METHOD_COD)->count(),
                 'cash' => OrderPayment::where('payment_method', OrderPayment::METHOD_CASH)->count(),
-                'bank_transfer' => OrderPayment::where('payment_method', OrderPayment::METHOD_BANK_TRANSFER)->count(),
-                'mobile_banking' => OrderPayment::where('payment_method', OrderPayment::METHOD_MOBILE_BANKING)->count(),
                 'card' => OrderPayment::where('payment_method', OrderPayment::METHOD_CARD)->count(),
-                'paypal' => OrderPayment::where('payment_method', OrderPayment::METHOD_PAYPAL)->count(),
+                'bank_transfer' => OrderPayment::where('payment_method', OrderPayment::METHOD_BANK_TRANSFER)->count(),
+                'bkash' => OrderPayment::where('payment_method', OrderPayment::METHOD_BKASH)->count(),
+                'nagad' => OrderPayment::where('payment_method', OrderPayment::METHOD_NAGAD)->count(),
+                'rocket' => OrderPayment::where('payment_method', OrderPayment::METHOD_ROCKET)->count(),
                 'wallet' => OrderPayment::where('payment_method', OrderPayment::METHOD_WALLET)->count(),
 
-                // Provider
-                'bkash' => OrderPayment::where('provider', OrderPayment::PROVIDER_BKASH)->count(),
-                'nagad' => OrderPayment::where('provider', OrderPayment::PROVIDER_NAGAD)->count(),
-                'rocket' => OrderPayment::where('provider', OrderPayment::PROVIDER_ROCKET)->count(),
-                'sslcommerz' => OrderPayment::where('provider', OrderPayment::PROVIDER_SSLCOMMERZ)->count(),
-                'stripe' => OrderPayment::where('provider', OrderPayment::PROVIDER_STRIPE)->count(),
-                'manual' => OrderPayment::where('provider', OrderPayment::PROVIDER_MANUAL)->count(),
-                'bank' => OrderPayment::where('provider', OrderPayment::PROVIDER_BANK)->count(),
-                'cash_provider' => OrderPayment::where('provider', OrderPayment::PROVIDER_CASH)->count(),
+                'total_amount' => $totalPaymentAmount,
+                'total_discount' => $totalPaymentDiscount,
+                'net_amount' => $totalPaymentAmount - $totalPaymentDiscount,
 
-                // Amount
-                'total_amount' => (float) OrderPayment::sum('amount'),
-                'total_gateway_fee' => (float) OrderPayment::sum('gateway_fee'),
-                'total_net_amount' => (float) OrderPayment::sum('net_amount'),
+                'payment_amount' => (float) OrderPayment::where('payment_type', OrderPayment::TYPE_PAYMENT)->sum('amount'),
+                'refund_amount' => (float) OrderPayment::where('payment_type', OrderPayment::TYPE_REFUND)->sum('amount'),
+                'adjustment_amount' => (float) OrderPayment::where('payment_type', OrderPayment::TYPE_ADJUSTMENT)->sum('amount'),
+
+                'cash_amount' => (float) OrderPayment::where('payment_method', OrderPayment::METHOD_CASH)->sum('amount'),
+                'card_amount' => (float) OrderPayment::where('payment_method', OrderPayment::METHOD_CARD)->sum('amount'),
+                'bank_transfer_amount' => (float) OrderPayment::where('payment_method', OrderPayment::METHOD_BANK_TRANSFER)->sum('amount'),
+                'bkash_amount' => (float) OrderPayment::where('payment_method', OrderPayment::METHOD_BKASH)->sum('amount'),
+                'nagad_amount' => (float) OrderPayment::where('payment_method', OrderPayment::METHOD_NAGAD)->sum('amount'),
+                'rocket_amount' => (float) OrderPayment::where('payment_method', OrderPayment::METHOD_ROCKET)->sum('amount'),
+                'wallet_amount' => (float) OrderPayment::where('payment_method', OrderPayment::METHOD_WALLET)->sum('amount'),
+
+                'total_customers' => OrderPayment::whereNotNull('customer_id')->distinct('customer_id')->count('customer_id'),
+                'customer_transactions' => OrderPayment::whereNotNull('customer_id')->count(),
+                'guest_transactions' => OrderPayment::whereNull('customer_id')->count(),
+
+                'verified_transactions' => OrderPayment::whereNotNull('verified_at')->count(),
+                'unverified_transactions' => OrderPayment::whereNull('verified_at')->count(),
+                'received_transactions' => OrderPayment::whereNotNull('received_by')->count(),
+
+                'today_transactions' => OrderPayment::whereDate('paid_at', today())->count(),
+                'today_amount' => (float) OrderPayment::whereDate('paid_at', today())->sum('amount'),
+
+                'this_month_transactions' => OrderPayment::whereMonth('paid_at', now()->month)
+                    ->whereYear('paid_at', now()->year)
+                    ->count(),
+
+                'this_month_amount' => (float) OrderPayment::whereMonth('paid_at', now()->month)
+                    ->whereYear('paid_at', now()->year)
+                    ->sum('amount'),
+
+                'average_payment' => $totalPayments ? $totalPaymentAmount / $totalPayments : 0,
+
+                'first_payment_date' => OrderPayment::min('paid_at'),
+                'last_payment_date' => OrderPayment::max('paid_at'),
+
+                'total_orders_paid' => OrderPayment::whereNotNull('order_id')
+                    ->distinct('order_id')
+                    ->count('order_id'),
+
+                'total_payment_users' => OrderPayment::distinct('user_id')->count('user_id'),
             ];
 
             return response()->json([
