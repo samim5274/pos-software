@@ -12,6 +12,8 @@ class PurchaseOrder extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $table = 'purchase_orders';
+
     public const STATUS_PENDING = 'pending';
     public const STATUS_UNPAID = 'unpaid';
     public const STATUS_PAID = 'paid';
@@ -42,10 +44,10 @@ class PurchaseOrder extends Model
         'completed_at',
         'returned_at',
         'returned_by',
+        'paid_at',
         'remarks',
         'ip_address',
         'user_agent',
-        'paid_at',
     ];
 
     protected $casts = [
@@ -89,18 +91,12 @@ class PurchaseOrder extends Model
 
     public function payments(): HasMany
     {
-        return $this->hasMany(
-            PurchaseOrderPayment::class,
-            'order_id',
-            'id'
-        );
+        return $this->hasMany(PurchaseOrderPayment::class, 'order_id','id');
     }
 
     public function getPaidAmountAttribute(): float
     {
-        return (float) $this->payments()
-            ->where('payment_type', PurchaseOrderPayment::TYPE_PAYMENT)
-            ->sum('amount');
+        return (float) $this->payments()->where('payment_type', PurchaseOrderPayment::TYPE_PAYMENT)->sum('amount');
     }
 
     public function getIsPaidAttribute(): bool
