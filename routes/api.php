@@ -20,6 +20,7 @@ use App\Http\Controllers\Ecommerce\EcommerceProductController;
 use App\Http\Controllers\Ecommerce\SearchController;
 use App\Http\Controllers\Ecommerce\CartController;
 use App\Http\Controllers\Ecommerce\AdminCartController;
+use App\Http\Controllers\Ecommerce\AdminCartReturnController;
 use App\Http\Controllers\Ecommerce\RatingController;
 use App\Http\Controllers\Ecommerce\SliderController;
 
@@ -300,6 +301,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/qty-update/{reg}/{product_id}', [AdminCartController::class, 'updateQty']);
         Route::post('/remove-to-cart/{cart_id}/{reg}/{product_id}', [AdminCartController::class, 'removeToCart']);
         Route::post('/checkout/{reg}', [AdminCartController::class, 'checkOut']);
+        Route::post('/checkout/return/{reg}', [AdminCartController::class, 'checkOutReturn']);
+    });
+
+    Route::prefix('admin/return/cart')->group(function () {
+        Route::get('/{reg}/{slug}', [AdminCartReturnController::class, 'index']);
+        Route::get('/{reg}', [AdminCartReturnController::class, 'getCartItem']);
+        Route::post('/add-to-cart', [AdminCartReturnController::class, 'adminAddToCart']);
+        Route::post('/add-to-cart-search', [AdminCartReturnController::class, 'adminAddToCartSearch']);
+        Route::post('/qty-update/{reg}/{product_id}', [AdminCartReturnController::class, 'updateQty']);
+        Route::post('/remove-to-cart/{cart_id}/{reg}/{product_id}', [AdminCartReturnController::class, 'removeToCart']);
+        // Route::post('/checkout/{reg}', [AdminCartReturnController::class, 'checkOut']);
+        Route::post('/checkout/{reg}', [AdminCartReturnController::class, 'checkOutReturn']);
     });
 
     // Route::prefix('cart')->group(function () {

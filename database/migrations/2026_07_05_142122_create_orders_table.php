@@ -31,6 +31,7 @@ return new class extends Migration
             $table->decimal('vat', 14, 2)->default(0);
             $table->decimal('due_amount', 14, 2)->default(0);
             $table->decimal('payable_amount', 14, 2)->default(0);
+            $table->decimal('refunded_amount', 12, 2)->default(0);
 
             $table->enum('payment_method', [
                 'cash',

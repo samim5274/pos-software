@@ -39,12 +39,14 @@ class Order extends Model
     public const STATUS_PARTIALLY_PAID = 'partially_paid';
     public const STATUS_COMPLETED = 'completed';
     public const STATUS_RETURNED = 'returned';
+    public const STATUS_PARTIALLY_RETURNED = 'partially_returned';
 
     public const ORDER_STATUSES = [
         self::STATUS_PENDING,
         self::STATUS_UNPAID,
         self::STATUS_PARTIALLY_PAID,
         self::STATUS_COMPLETED,
+        self::STATUS_PARTIALLY_RETURNED,
         self::STATUS_RETURNED,
     ];
 
@@ -67,6 +69,7 @@ class Order extends Model
 
         'due_amount',
         'payable_amount',
+        'refunded_amount',
 
         'payment_method',
         'currency',
@@ -99,6 +102,7 @@ class Order extends Model
         'paid_at' => 'datetime',
         'completed_at' => 'datetime',
         'returned_at' => 'datetime',
+        'refunded_amount' => 'decimal:2',
     ];
 
     protected $attributes = [
@@ -196,6 +200,16 @@ class Order extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(OrderPayment::class);
+    }
+
+    public function returns(): HasMany
+    {
+        return $this->hasMany(OrderReturn::class, 'order_id');
+    }
+
+    public function cartItems()
+    {
+        return $this->hasMany(Cart::class, 'reg', 'reg');
     }
 
 }

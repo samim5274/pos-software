@@ -16,6 +16,7 @@ class Cart extends Model
         'product_id',
         'stock_id',
         'quantity',
+        'returned_quantity',
         'price',
         'discount',
         'total_amount',

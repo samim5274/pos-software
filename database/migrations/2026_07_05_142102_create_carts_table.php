@@ -23,12 +23,13 @@ return new class extends Migration
 
             // Product Details (Snapshot)
             $table->integer('quantity')->default(1);
+            $table->unsignedInteger('returned_quantity')->default(0);
             $table->decimal('price', 12, 2)->default(0.00)->comment('Price per unit at the time of adding');
             $table->decimal('discount', 12, 2)->default(0.00)->comment('Any discount applied');
             $table->decimal('total_amount', 12, 2)->default(0.00)->comment('Final amount payable after discounts');
 
             $table->integer('point')->default(0);
-            
+
             $table->text('note')->nullable();
             $table->timestamps();
 
