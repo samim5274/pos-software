@@ -306,12 +306,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('admin/return/cart')->group(function () {
         Route::get('/{reg}/{slug}', [AdminCartReturnController::class, 'index']);
-        Route::get('/{reg}', [AdminCartReturnController::class, 'getCartItem']);
-        Route::post('/add-to-cart', [AdminCartReturnController::class, 'adminAddToCart']);
-        Route::post('/add-to-cart-search', [AdminCartReturnController::class, 'adminAddToCartSearch']);
         Route::post('/qty-update/{reg}/{product_id}', [AdminCartReturnController::class, 'updateQty']);
-        Route::post('/remove-to-cart/{cart_id}/{reg}/{product_id}', [AdminCartReturnController::class, 'removeToCart']);
-        // Route::post('/checkout/{reg}', [AdminCartReturnController::class, 'checkOut']);
         Route::post('/checkout/{reg}', [AdminCartReturnController::class, 'checkOutReturn']);
     });
 
