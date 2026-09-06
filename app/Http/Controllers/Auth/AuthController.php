@@ -29,65 +29,6 @@ use App\Services\RegGenerator;
 
 class AuthController extends Controller
 {
-    public function getReferUser($referCode)
-    {
-        try
-        {
-            $user = User::select(['id','name','user_id','email'])
-                ->where('user_id', $referCode)
-                ->first();
-
-            // User not found
-            if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Referral user not found.',
-                    'data' => null,
-                ], 404);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Referral user fetched successfully.',
-                'data' => $user,
-            ], 200);
-        }catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Something went wrong while fetching referral user.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    // public function register(Request $request)
-    // {
-    //     try {
-    //         $request->validate([
-    //             'name' => 'required|string|max:255',
-    //             'email' => 'required|email|unique:users,email',
-    //             'password' => 'required|string|min:6|confirmed',
-    //         ], [
-    //             'email.unique' => 'This email is already registered. Please use another email.',
-    //         ]);
-
-    //         $user = User::create([
-    //             'name'      => $request->name,
-    //             'email'     => $request->email,
-    //             'password'  => Hash::make($request->password)
-    //         ]);
-
-    //         $token = $user->createToken('api-token')->plainTextToken;
-
-    //         return response()->json([
-    //             'user'  => $user->only(['id','name','email','role','is_active','created_at']),
-    //             'token' => $token,
-    //         ], 201);
-
-    //     } catch (ValidationException $e) {
-    //         return response()->json(['errors' => $e->errors()], 422);
-    //     }
-    // }
 
     public function register(Request $request, PointService $pointService)
     {
@@ -776,59 +717,5 @@ class AuthController extends Controller
         return response()->json([
             'devices' => $tokens
         ]);
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-    public function getUsers(){
-        try {
-            $users = User::with(['referrer', 'leftChild', 'rightChild'])
-                    ->where('is_match', 0)
-                    ->where('role', '!=', 'super_admin')
-                    ->latest()
-                    ->get();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Fetched all admin users',
-                'data' => $users,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Something went wrong',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    public function getProducts()
-    {
-        try {
-            $products = Product::where('point', '>=', 100)
-                    ->latest()
-                    ->get();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Fetched all 100 points products',
-                'data' => $products,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Something went wrong',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
     }
 }

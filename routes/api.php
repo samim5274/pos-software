@@ -16,7 +16,6 @@ use App\Http\Controllers\Customer\CustomerController;
 
 use App\Http\Controllers\Dashboard\DashboardController;
 
-use App\Http\Controllers\Ecommerce\EcommerceProductController;
 use App\Http\Controllers\Ecommerce\SearchController;
 use App\Http\Controllers\Ecommerce\CartController;
 use App\Http\Controllers\Ecommerce\AdminCartController;
@@ -61,9 +60,6 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::prefix('register')->group(function () {
-    // Route::get('/get-refer/{referCode}', [AuthController::class, 'getReferUser']);
-    // Route::get('/products', [AuthController::class, 'getProducts']);
-    // Route::get('/root-users', [AuthController::class, 'getUsers']);
     Route::post('/create-user', [AuthController::class, 'register']);
 });
 
@@ -256,42 +252,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 
 
-// ======================
-// E-commerce Routes
-// ======================
-// Route::prefix('public')->group(function () {
-
-//     // Products
-//     Route::get('/products', [EcommerceProductController::class, 'index']);
-//     Route::get('/product/{slug}', [ProductController::class, 'show']);
-
-//     // Categories
-//     Route::get('/get-categories', [ProductController::class, 'getCategory']);
-//     Route::get('/get-subcategories', [ProductController::class, 'getSubCategory']);
-//     Route::get('/get-brands', [ProductController::class, 'getBrand']);
-
-//     // Category Products
-//     Route::get('/category-products/{id}', [EcommerceProductController::class, 'getCategoryProducts']);
-//     Route::get('/products/category/group', [EcommerceProductController::class, 'categoryGroup']);
-
-//     // Location
-//     Route::get('/get-division', [EcommerceProductController::class, 'getDivision']);
-//     Route::get('/get-district', [EcommerceProductController::class, 'getDistrict']);
-//     Route::get('/get-upazila', [EcommerceProductController::class, 'getUpazila']);
-//     Route::get('/get-police-station', [EcommerceProductController::class, 'getPoliceStation']);
-
-//     // Other
-//     Route::get('/{user_id}/details', [EcommerceProductController::class, 'otherDetails']);
-// });
-
-// =============================
-// E-commerce Search
-// =============================
-// Route::prefix('search')->group(function () {
-//     Route::get('/', [SearchController::class, 'search']);
-//     Route::get('/suggestions', [SearchController::class, 'suggestions']);
-// });
-
 Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('admin/cart')->group(function () {
         Route::get('/', [AdminCartController::class, 'index']);
@@ -309,28 +269,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/qty-update/{reg}/{product_id}', [AdminCartReturnController::class, 'updateQty']);
         Route::post('/checkout/{reg}', [AdminCartReturnController::class, 'checkOutReturn']);
     });
-
-    // Route::prefix('cart')->group(function () {
-    //     Route::get('/', [CartController::class, 'index']);
-    //     Route::get('/{reg}', [CartController::class, 'getCartItem']);
-    //     Route::post('/add-to-cart', [CartController::class, 'addToCart']);
-    //     Route::post('/qty-update/{reg}/{product_id}/{variant_id}', [CartController::class, 'updateQty']);
-    //     Route::post('/remove-to-cart/{cart_id}/{reg}/{product_id}/{variant_id}', [CartController::class, 'removeToCart']);
-    // });
 });
-
-// =============================
-// Product Ratting
-// =============================
-
-// Route::get('/product/ratings/{product_id}', [RatingController::class, 'getProductRating']);
-
-// Route::middleware('auth:sanctum')->group(function () {
-//     Route::prefix('ratings')->group(function () {
-//         Route::get('/', [RatingController::class, 'index']);
-//         Route::post('/', [RatingController::class, 'store']);
-//     });
-// });
 
 
 
@@ -348,17 +287,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/return/{reg}/{slug}/{id}', [OrderController::class, 'orderReturn']);
         Route::get('/status', [OrderController::class, 'statusFilter']);
 
-        // Route::get('/customer/{user_id}', [OrderController::class, 'getCustomerDetails']);
-        // Route::get('/items/{reg}/payment/details', [EcommerceProductController::class, 'orderItemsDetails']);
-
-
-        // Route::post('/confirm/{reg}', [OrderController::class, 'confirmOrder']);
-        // Route::post('/payments/{payment_id}/verify', [OrderController::class, 'verifyPayment']);
-        // Route::post('/{reg}/payments', [OrderController::class, 'confirmPayment']);
-        // Route::post('/update-status/{reg}', [OrderController::class, 'updateStatus']);
-
-        // Route::patch('/delivery-charge-payments/{id}/status', [OrderController::class, 'deliveryStatusUpdate']);
-
         Route::prefix('reports')->group(function(){
             Route::get('/sale', [OrderController::class, 'reportSale']);
             Route::get('/sale/filter', [OrderController::class, 'reportSaleFilter']);
@@ -367,23 +295,11 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/payment/filter', [OrderController::class, 'reportPaymentFilter']);
         });
 
-        // Route::get('/user/details', [EcommerceProductController::class, 'userOrderDetails']);
-
-        // Route::post('/check-coupon', [CouponController::class, 'checkCoupon']);
-
         Route::get('/{reg}', [OrderController::class, 'getOrderDetails']);
         Route::get('/payment/{paymentNumber}/{orderId}', [OrderController::class, 'getOrderPaymentDetails']);
     });
 });
 
-// =============================
-// Coupon Controller
-// =============================
-// Route::middleware('auth:sanctum')->group(function () {
-//     Route::prefix('coupon')->group(function () {
-//         Route::post('/check', [CouponController::class, 'checkCoupon']);
-//     });
-// });
 
 
 
@@ -471,20 +387,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
 
-// ======================
-// Slider Routes
-// ======================
-// Route::middleware('auth:sanctum')->group(function () {
-//     Route::prefix('slider')->group(function () {
-//         Route::get('/', [SliderController::class, 'index']);
-//         Route::post('/create', [SliderController::class, 'store']);
-//         Route::delete('/delete/{id}', [SliderController::class, 'delete']);
-//     });
-// });
 
-// Route::prefix('slider')->group(function () {
-//     Route::get('/public', [SliderController::class, 'show']);
-// });
 
 
 
@@ -520,30 +423,5 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/products', [ReportController::class, 'index']);
         Route::get('/customer/due', [ReportController::class, 'customerDue']);
         Route::get('/supplyer/due', [ReportController::class, 'supplyerDue']);
-    });
-});
-
-
-
-
-
-// ======================
-// Super Admin Routes
-// ======================
-Route::middleware('auth:sanctum')->group(function () {
-    Route::prefix('super-admin')->group(function () {
-        Route::get('/', [ AdminController::class, 'index']);
-        Route::get('/transaction', [ AdminController::class, 'transaction']);
-
-        Route::get('/star-club/users', [AdminController::class, 'starClubUsers']);
-        Route::post('/star-club/add-money/{user_id}', [AdminController::class, 'addMoneyStarClub']);
-
-        Route::get('/dynamic-club/users', [AdminController::class, 'dynamicClubUsers']);
-        Route::post('/dynamic-club/add-money/{user_id}', [AdminController::class, 'addMoneyDynamicClub']);
-
-        Route::post('/add-money/{user_id}', [AdminController::class, 'addMoney']);
-        Route::post('/deduct-money/{user_id}', [AdminController::class, 'deductMoney']);
-        Route::get('/user/{user_id}', [AdminController::class, 'getUserDetails']);
-        Route::put('/user/change-role', [AdminController::class, 'changeUserRole']);
     });
 });
