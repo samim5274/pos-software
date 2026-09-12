@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException;
 
 use App\Models\Product;
 use App\Models\Cart;
@@ -17,6 +18,7 @@ use App\Models\OrderPayment;
 use App\Models\Supplyer;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderPayment;
+use App\Models\Expense;
 
 class ReportController extends Controller
 {
@@ -69,6 +71,121 @@ class ReportController extends Controller
                 'total' => $reports->total(),
                 'from' => $reports->firstItem(),
                 'to' => $reports->lastItem(),
+            ],
+        ]);
+    }
+
+
+    public function expense(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'start_date'      => 'nullable|date|date_format:Y-m-d',
+            'end_date'        => 'nullable|date|date_format:Y-m-d|after_or_equal:start_date',
+            'category_id'     => 'nullable|integer|exists:ex_categories,id',
+            'sub_category_id' => 'nullable|integer|exists:ex_sub_categories,id',
+            'user_id'         => 'nullable|integer|exists:users,id',
+            'search'          => 'nullable|string|max:100',
+            'per_page'        => 'nullable|integer|min:10|max:100',
+        ]);
+
+        $perPage = $validated['per_page'] ?? 20;
+
+        $query = Expense::with([
+            'category:id,name',
+            'subcategory:id,name',
+            'user:id,name',
+        ]);
+
+        if (!empty($validated['start_date'])) {
+            $query->whereDate('date', '>=', $validated['start_date']);
+        }
+
+        if (!empty($validated['end_date'])) {
+            $query->whereDate('date', '<=', $validated['end_date']);
+        }
+
+        if (!empty($validated['category_id'])) {
+            $query->where('category_id', $validated['category_id']);
+        }
+
+        if (!empty($validated['sub_category_id'])) {
+            $query->where('sub_category_id', $validated['sub_category_id']);
+        }
+
+        if (!empty($validated['user_id'])) {
+            $query->where('user_id', $validated['user_id']);
+        }
+
+        if (!empty($validated['search'])) {
+            $search = trim($validated['search']);
+
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('remark', 'like', "%{$search}%");
+            });
+        }
+
+        $summaryQuery = clone $query;
+
+        $totalExpense = (clone $summaryQuery)->sum('amount');
+        $totalTransactions = (clone $summaryQuery)->count();
+        $averageExpense = $totalTransactions ? $totalExpense / $totalTransactions : 0;
+
+        $categoryWise = (clone $summaryQuery)
+            ->selectRaw('category_id, COUNT(*) as transaction_count, SUM(amount) as total_amount')
+            ->with('category:id,name')
+            ->groupBy('category_id')
+            ->orderByDesc('total_amount')
+            ->get()
+            ->map(fn($item) => [
+                'category_id'       => $item->category_id,
+                'category'          => $item->category?->name ?? 'Uncategorized',
+                'transaction_count' => (int) $item->transaction_count,
+                'total_amount'      => number_format($item->total_amount, 2, '.', ''),
+            ])
+            ->values();
+
+        $dailyWise = (clone $summaryQuery)
+            ->selectRaw('DATE(date) as expense_date, COUNT(*) as transaction_count, SUM(amount) as total_amount')
+            ->groupByRaw('DATE(date)')
+            ->orderByDesc('expense_date')
+            ->get()
+            ->map(fn($item) => [
+                'date'              => $item->expense_date,
+                'transaction_count' => (int) $item->transaction_count,
+                'total_amount'      => number_format($item->total_amount, 2, '.', ''),
+            ])
+            ->values();
+
+        $expenses = $query
+            ->select([
+                'id',
+                'category_id',
+                'sub_category_id',
+                'user_id',
+                'title',
+                'date',
+                'amount',
+                'remark',
+                'created_at',
+            ])
+            ->latest('date')
+            ->latest('id')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Expense report retrieved successfully.',
+            'data' => [
+                'summary' => [
+                    'total_expense'     => number_format($totalExpense, 2, '.', ''),
+                    'total_transactions'=> $totalTransactions,
+                    'average_expense'   => number_format($averageExpense, 2, '.', ''),
+                ],
+                'category_wise' => $categoryWise,
+                'daily_wise'    => $dailyWise,
+                'expenses'      => $expenses,
             ],
         ]);
     }
