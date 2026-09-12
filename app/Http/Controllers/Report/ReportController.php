@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Validator;
 use Throwable;
 use Illuminate\Pagination\LengthAwarePaginator;
 
+
 use App\Models\Product;
 use App\Models\Cart;
 use App\Models\Customer;
@@ -748,4 +749,101 @@ class ReportController extends Controller
         );
     }
 
+    public function productByProductSaleReport(Request $request): JsonResponse
+    {
+        try {
+            $validated = Validator::make($request->all(), [
+                'start_date' => ['nullable', 'date', 'date_format:Y-m-d'],
+                'end_date' => ['nullable', 'date', 'date_format:Y-m-d', 'after_or_equal:start_date'],
+                'product_id' => ['nullable', 'integer'],
+                'per_page' => ['nullable', 'integer', 'min:5', 'max:100'],
+                'page' => ['nullable', 'integer', 'min:1'],
+            ])->validate();
+
+            $perPage = (int) ($validated['per_page'] ?? 20);
+            $page = (int) ($validated['page'] ?? 1);
+
+            $query = Cart::query()
+                ->whereHas('product')
+                ->when(
+                    $validated['start_date'] ?? null,
+                    fn($q, $date) => $q->where('created_at', '>=', $date . ' 00:00:00')
+                )
+                ->when(
+                    $validated['end_date'] ?? null,
+                    fn($q, $date) => $q->where('created_at', '<', date('Y-m-d', strtotime($date . ' +1 day')) . ' 00:00:00')
+                )
+                ->when(
+                    $validated['product_id'] ?? null,
+                    fn($q, $id) => $q->where('product_id', $id)
+                )
+                ->where(function ($q) {
+                    $q->whereNull('returned_quantity')
+                    ->orWhere('returned_quantity', '<', DB::raw('quantity'));
+                });
+
+            $total = (clone $query)
+                ->selectRaw('COUNT(DISTINCT CONCAT(DATE(created_at), "-", product_id)) AS aggregate')
+                ->value('aggregate');
+
+            $offset = ($page - 1) * $perPage;
+
+            $sales = $query
+                ->with('product:id,name,sku')
+                ->select('product_id')
+                ->selectRaw('DATE(created_at) AS date')
+                ->selectRaw('COUNT(*) AS sale_count')
+                ->selectRaw('SUM(quantity - COALESCE(returned_quantity, 0)) AS total_quantity')
+                ->selectRaw('COALESCE(SUM(total_amount), 0) AS total_amount')
+                ->selectRaw('COALESCE(SUM(discount), 0) AS total_discount')
+                ->groupBy(DB::raw('DATE(created_at)'), 'product_id')
+                ->orderByDesc('date')
+                ->orderBy('product_id')
+                ->offset($offset)
+                ->limit($perPage)
+                ->get()
+                ->map(fn($row) => [
+                    'date' => $row->date,
+                    'product_id' => (int) $row->product_id,
+                    'product_name' => $row->product?->name ?? 'Unknown Product',
+                    'sku' => $row->product?->sku ?? '-',
+                    'sale_count' => (int) $row->sale_count,
+                    'total_quantity' => (float) $row->total_quantity,
+                    'total_amount' => round((float) $row->total_amount, 2),
+                    'total_discount' => round((float) $row->total_discount, 2),
+                ])
+                ->values();
+
+            $lastPage = $total > 0 ? (int) ceil($total / $perPage) : 1;
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Date-wise product sales report retrieved successfully.',
+                'data' => [
+                    'data' => $sales,
+                    'current_page' => $page,
+                    'last_page' => $lastPage,
+                    'per_page' => $perPage,
+                    'total' => (int) $total,
+                    'from' => $total > 0 ? $offset + 1 : 0,
+                    'to' => min($offset + $sales->count(), $total),
+                ],
+            ]);
+
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Validation failed.',
+                'errors' => $e->errors(),
+            ], 422);
+
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Unable to generate product sales report.',
+            ], 500);
+        }
+    }
 }
