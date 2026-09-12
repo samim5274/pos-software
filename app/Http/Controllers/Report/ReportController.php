@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 use App\Models\Product;
 use App\Models\Cart;
@@ -596,6 +597,155 @@ class ReportController extends Controller
             'profit_margin'  => $sales > 0 ? round(($profit / $sales) * 100, 2) : 0.0,
             'status'         => $profit >= 0 ? 'profit' : 'loss',
         ];
+    }
+
+    /**
+     * Day-by-day sales/payment report.
+     */
+    public function dayByDaySaleReport(Request $request): JsonResponse
+    {
+        try {
+            $validated = $this->validateDayByDayRequest($request);
+
+            $perPage = min((int) ($validated['per_page'] ?? 20), 100);
+            $page    = (int) ($validated['page'] ?? 1);
+
+            $baseQuery = $this->buildDayByDaySalesQuery($validated);
+
+            // ---- Overall summary (over the FULL filtered range) ----
+            $summary = $this->buildDayByDaySummary(clone $baseQuery);
+
+            // ---- Day-wise paginated rows ----
+            $days = $this->paginateGroupedDays(clone $baseQuery, $perPage, $page);
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'Day-by-day sales report retrieved successfully.',
+                'data'    => [
+                    'summary' => $summary,
+                    'days'    => $days,
+                ],
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Validation failed.',
+                'errors'  => $e->errors(),
+            ], 422);
+        } catch (Throwable $e) {
+            report($e);
+
+            Log::error('Day By Day Sale Report Error', [
+                'message' => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'Unable to generate the day-by-day sales report.',
+            ], 500);
+        }
+    }
+
+    private function validateDayByDayRequest(Request $request): array
+    {
+        $validator = Validator::make($request->all(), [
+            'start_date' => ['nullable', 'date', 'date_format:Y-m-d'],
+            'end_date'   => ['nullable', 'date', 'date_format:Y-m-d', 'after_or_equal:start_date'],
+            'per_page'   => ['nullable', 'integer', 'min:5', 'max:100'],
+            'page'       => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        return $validator->validate();
+    }
+
+    /**
+     * Base query with date filters applied (no select/group yet).
+     */
+    private function buildDayByDaySalesQuery(array $filters)
+    {
+        return OrderPayment::query()
+            ->when(
+                $filters['start_date'] ?? null,
+                fn ($q, $date) => $q->whereDate('paid_at', '>=', $date)
+            )
+            ->when(
+                $filters['end_date'] ?? null,
+                fn ($q, $date) => $q->whereDate('paid_at', '<=', $date)
+            );
+    }
+
+    /**
+     * Overall totals across the full filtered range (not just current page).
+     */
+    private function buildDayByDaySummary($query): array
+    {
+        $row = $query
+            ->selectRaw('
+                COALESCE(SUM(amount), 0)      as total_amount,
+                COUNT(*)                       as total_payments,
+                COUNT(DISTINCT DATE(paid_at))  as total_days
+            ')
+            ->first();
+
+        $totalAmount = (float) $row->total_amount;
+        $totalDays   = (int) $row->total_days;
+
+        return [
+            'total_amount'    => round($totalAmount, 2),
+            'total_payments'  => (int) $row->total_payments,
+            'total_days'      => $totalDays,
+            'average_per_day' => $totalDays > 0
+                ? round($totalAmount / $totalDays, 2)
+                : 0.0,
+        ];
+    }
+
+    /**
+     * Paginate a GROUP BY query correctly.
+     *
+     * Laravel's ->paginate() on a grouped query miscounts the total
+     * (it counts raw rows, not distinct groups), so we get the true
+     * group count separately, then apply LIMIT/OFFSET manually.
+     */
+    private function paginateGroupedDays($query, int $perPage, int $page): LengthAwarePaginator
+    {
+        // True total = number of distinct days matching the filters.
+        $total = (clone $query)
+            ->select(DB::raw('DATE(paid_at) as date'))
+            ->groupBy(DB::raw('DATE(paid_at)'))
+            ->get()
+            ->count();
+
+        $items = $query
+            ->selectRaw('
+                DATE(paid_at) as date,
+                COALESCE(SUM(amount), 0) as total_amount,
+                COUNT(*) as total_payments
+            ')
+            ->groupByRaw('DATE(paid_at)')
+            ->orderByDesc('date')
+            ->skip(($page - 1) * $perPage)
+            ->take($perPage)
+            ->get()
+            ->map(fn ($row) => [
+                'date'           => $row->date,
+                'total_amount'   => round((float) $row->total_amount, 2),
+                'total_payments' => (int) $row->total_payments,
+            ]);
+
+        return new LengthAwarePaginator(
+            $items,
+            $total,
+            $perPage,
+            $page,
+            [
+                'path'     => request()->url(),
+                'query'    => request()->query(),
+                'pageName' => 'page',
+            ]
+        );
     }
 
 }

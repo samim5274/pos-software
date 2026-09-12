@@ -425,5 +425,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/supplyer/due', [ReportController::class, 'supplyerDue']);
         Route::get('/expense', [ReportController::class, 'expense']);
         Route::get('/profit-loss', [ReportController::class, 'profitAndLoss']);
+        Route::get('/day-by-day', [ReportController::class, 'dayByDaySaleReport']);
     });
 });
