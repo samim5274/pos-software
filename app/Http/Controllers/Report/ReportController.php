@@ -9,6 +9,8 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Validator;
+use Throwable;
 
 use App\Models\Product;
 use App\Models\Cart;
@@ -19,6 +21,7 @@ use App\Models\Supplyer;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderPayment;
 use App\Models\Expense;
+use App\Models\Stock;
 
 class ReportController extends Controller
 {
@@ -373,4 +376,226 @@ class ReportController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Profit & Loss report based on sold stock, with per-product breakdown.
+     *
+     * GET /api/reports/profit-loss
+     */
+    public function profitAndLoss(Request $request): JsonResponse
+    {
+        try {
+            $validated = $this->validateRequest($request);
+
+            $perPage = min((int) ($validated['per_page'] ?? 20), 100);
+            $page    = (int) ($validated['page'] ?? 1);
+
+            $baseQuery = $this->buildBaseQuery($validated);
+
+            // ---- Aggregate summary (over the FULL filtered set) ----
+            $summary = $this->buildSummary(clone $baseQuery);
+
+            // ---- Product-wise profit/loss breakdown ----
+            $productWise = $this->buildProductWiseSummary(clone $baseQuery);
+
+            // ---- Paginated batch-level rows ----
+            $stocks = (clone $baseQuery)
+                ->select([
+                    'id',
+                    'product_id',
+                    'batch_no',
+                    'date',
+                    'purchase_price',
+                    'sale_price',
+                    'stockOut',
+                ])
+                ->latest('date')
+                ->latest('id')
+                ->paginate($perPage, ['*'], 'page', $page)
+                ->withQueryString();
+
+            $stocks->getCollection()->transform(
+                fn (Stock $stock) => $this->transformRow($stock)
+            );
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'Profit & loss report retrieved successfully.',
+                'data'    => [
+                    'summary'      => $summary,
+                    'product_wise' => $productWise,
+                    'stocks'       => $stocks,
+                ],
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Validation failed.',
+                'errors'  => $e->errors(),
+            ], 422);
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'Unable to generate the profit & loss report.',
+            ], 500);
+        }
+    }
+
+    private function validateRequest(Request $request): array
+    {
+        $validator = Validator::make($request->all(), [
+            'start_date'  => ['nullable', 'date', 'date_format:Y-m-d'],
+            'end_date'    => ['nullable', 'date', 'date_format:Y-m-d', 'after_or_equal:start_date'],
+            'product_id'  => ['nullable', 'integer', 'exists:products,id'],
+            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'search'      => ['nullable', 'string', 'max:100'],
+            'per_page'    => ['nullable', 'integer', 'min:5', 'max:100'],
+            'page'        => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        return $validator->validate();
+    }
+
+    /**
+     * Shared base query — filters applied once, reused everywhere.
+     */
+    private function buildBaseQuery(array $filters)
+    {
+        return Stock::query()
+            ->with('product:id,name,sku')
+            ->when(
+                $filters['product_id'] ?? null,
+                fn ($q, $id) => $q->where('product_id', $id)
+            )
+            ->when(
+                $filters['category_id'] ?? null,
+                fn ($q, $id) => $q->whereHas(
+                    'product',
+                    fn ($p) => $p->where('category_id', $id)
+                )
+            )
+            ->when(
+                $filters['search'] ?? null,
+                fn ($q, $term) => $q->where(function ($q) use ($term) {
+                    $q->where('batch_no', 'like', "%{$term}%")
+                        ->orWhereHas(
+                            'product',
+                            fn ($p) => $p->where('name', 'like', "%{$term}%")
+                                ->orWhere('sku', 'like', "%{$term}%")
+                        );
+                })
+            )
+            ->when(
+                $filters['start_date'] ?? null,
+                fn ($q, $date) => $q->whereDate('date', '>=', $date)
+            )
+            ->when(
+                $filters['end_date'] ?? null,
+                fn ($q, $date) => $q->whereDate('date', '<=', $date)
+            )
+            ->where('stockOut', '>', 0);
+    }
+
+    /**
+     * Overall aggregate totals (SQL-side).
+     */
+    private function buildSummary($query): array
+    {
+        $row = $query
+            ->selectRaw('
+                COALESCE(SUM(stockOut), 0)                                 as total_quantity,
+                COALESCE(SUM(sale_price * stockOut), 0)                    as total_sales,
+                COALESCE(SUM(purchase_price * stockOut), 0)                as total_cost,
+                COALESCE(SUM((sale_price - purchase_price) * stockOut), 0) as total_profit,
+                COUNT(*)                                                   as total_records
+            ')
+            ->first();
+
+        $totalSales  = (float) $row->total_sales;
+        $totalProfit = (float) $row->total_profit;
+
+        return [
+            'total_records'  => (int) $row->total_records,
+            'total_quantity' => (int) $row->total_quantity,
+            'total_sales'    => round($totalSales, 2),
+            'total_cost'     => round((float) $row->total_cost, 2),
+            'total_profit'   => round($totalProfit, 2),
+            'profit_margin'  => $totalSales > 0
+                ? round(($totalProfit / $totalSales) * 100, 2)
+                : 0.0,
+        ];
+    }
+
+    /**
+     * Product-wise profit & loss — grouped by product_id,
+     * using each batch's own purchase_price / sale_price.
+     */
+    private function buildProductWiseSummary($query)
+    {
+        return $query
+            ->selectRaw('
+                product_id,
+                COALESCE(SUM(stockOut), 0)                                 as sold_quantity,
+                COALESCE(SUM(sale_price * stockOut), 0)                    as total_sales,
+                COALESCE(SUM(purchase_price * stockOut), 0)                as total_cost,
+                COALESCE(SUM((sale_price - purchase_price) * stockOut), 0) as total_profit,
+                COALESCE(AVG(purchase_price), 0)                           as avg_purchase_price,
+                COALESCE(AVG(sale_price), 0)                               as avg_sale_price
+            ')
+            ->with('product:id,name,sku')
+            ->groupBy('product_id')
+            ->orderByDesc('total_profit')
+            ->get()
+            ->map(function ($row) {
+                $sales  = round((float) $row->total_sales, 2);
+                $cost   = round((float) $row->total_cost, 2);
+                $profit = round((float) $row->total_profit, 2);
+
+                return [
+                    'product_id'         => $row->product_id,
+                    'product'            => $row->product,
+                    'sold_quantity'      => (int) $row->sold_quantity,
+                    'avg_purchase_price' => round((float) $row->avg_purchase_price, 2),
+                    'avg_sale_price'     => round((float) $row->avg_sale_price, 2),
+                    'total_sales'        => $sales,
+                    'total_cost'         => $cost,
+                    'total_profit'       => $profit,
+                    'profit_margin'      => $sales > 0 ? round(($profit / $sales) * 100, 2) : 0.0,
+                    'status'             => $profit >= 0 ? 'profit' : 'loss',
+                ];
+            })
+            ->values();
+    }
+
+    /**
+     * Shape a single batch-level stock row for the response.
+     */
+    private function transformRow(Stock $stock): array
+    {
+        $purchasePrice = (float) $stock->purchase_price;
+        $salePrice     = (float) $stock->sale_price;
+        $qty           = (int) $stock->stockOut;
+
+        $sales  = round($salePrice * $qty, 2);
+        $cost   = round($purchasePrice * $qty, 2);
+        $profit = round(($salePrice - $purchasePrice) * $qty, 2);
+
+        return [
+            'id'             => $stock->id,
+            'product'        => $stock->product,
+            'batch_no'       => $stock->batch_no,
+            'date'           => optional($stock->date)->format('Y-m-d') ?? $stock->date,
+            'purchase_price' => $purchasePrice,
+            'sale_price'     => $salePrice,
+            'sold_quantity'  => $qty,
+            'sales'          => $sales,
+            'cost'           => $cost,
+            'profit'         => $profit,
+            'profit_margin'  => $sales > 0 ? round(($profit / $sales) * 100, 2) : 0.0,
+            'status'         => $profit >= 0 ? 'profit' : 'loss',
+        ];
+    }
+
 }
